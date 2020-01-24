@@ -1,12 +1,13 @@
 test(){ ## Curl tests
-	curl -X POST \
+	curl -v -X POST \
 		-H "Content-Type: application/cloudevents+json" \
 		-H "ce-type: com.example.someevent" \
 		-H "ce-time: $(date '+%FT%T.%N%:z')" \
 		-H "ce-id: $(uuidgen)" \
 		-H "ce-source: a/b/" \
 		-H "ce-specversion: 1.0" \
-		-d @<(echo '{}') \
-		http://localhost:8080/
+		-H "ce-myextension: 1234" \
+		-d @<(echo '{"hello":"world"}') \
+		http://localhost:9090/
 }
 "${@:-test}"

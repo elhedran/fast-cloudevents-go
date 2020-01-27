@@ -8,6 +8,6 @@ test(){ ## Curl tests
 		-H "ce-specversion: 1.0" \
 		-H "ce-myextension: 1234" \
 		-d @<(echo '{"hello":"world"}') \
-		http://localhost:9090/
+		http://localhost:8080/
 }
 "${@:-test}"

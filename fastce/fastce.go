@@ -111,7 +111,7 @@ func ExtensionsToFastHTTPBinary(ctx *fasthttp.RequestCtx, extensions map[string]
 func ExtendedHeader(h string) (bool, string) {
 	parts := strings.SplitN(strings.ToLower(h), "ce-", 2)
 	num := len(parts)
-	return num>=2, parts[num-1]
+	return num >= 2, parts[num-1]
 }
 
 // KnownHeader returns true when the given string is a known, ce- prefixed header key.

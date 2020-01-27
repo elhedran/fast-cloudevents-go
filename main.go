@@ -3,14 +3,14 @@ package main
 import (
 	"cloudevents-go/fastce"
 
+	"encoding/json"
 	"log"
 	"net/http"
-	"encoding/json"
 
 	"github.com/valyala/fasthttp"
 )
 
-func main(){
+func main() {
 	ExampleServer()
 }
 

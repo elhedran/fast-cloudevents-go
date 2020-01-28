@@ -1,4 +1,4 @@
-module cloudevents-go
+module fast-cloudevents-go
 
 go 1.13
 

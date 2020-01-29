@@ -1,7 +1,7 @@
 package main
 
 import (
-	"cloudevents-go/fastce"
+	"fast-cloudevents-go/fastce"
 
 	"encoding/json"
 	"log"

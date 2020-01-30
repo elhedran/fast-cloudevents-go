@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fast-cloudevents-go/fastce"
+	"github.com/creativecactus/fast-cloudevents-go/fastce"
 
 	"encoding/json"
 	"log"

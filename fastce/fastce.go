@@ -124,7 +124,7 @@ func KnownHeader(h string) bool {
 		"ce-specversion",
 	}
 	for _, kh := range known {
-		if kh == h {
+		if kh == strings.ToLower(h) {
 			return true
 		}
 	}

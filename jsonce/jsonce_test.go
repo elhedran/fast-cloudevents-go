@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-type Scenarios struct {
+type Scenarios struct { // TODO: Make interface
 	T      *testing.T
 	Name   string
 	Input  string
@@ -201,4 +201,35 @@ func TestUnmarshal(t *testing.T) {
 		s.Failf("Want: %s\nHave: %s", want, string(raw))
 	}
 	s.Logf("%s", raw)
+}
+func TestMarshal(t *testing.T) {
+        input := CloudEvent{
+                Id:          "test",
+                Source:      "test",
+                SpecVersion: "test",
+                Type:        "test",
+                Data:        []byte(`{"a":2}`),
+		Extensions:  map[string]interface{}{ "hi":"test" },
+        }
+
+	// Data Normal
+	want := `{"data":{"a":2},"hi":"test","id":"test","source":"test","specversion":"test","type":"test"}`
+	js, err := input.MarshalJSON()
+	if err != nil {
+		t.Errorf("Marshal:\n%#v\n\nWant:%s\nError:%s\n", input, want, err.Error())
+	}
+	if have := string(js); want != have {
+		t.Errorf("Marshal:\n%#v\n\nWant:%s\nHave:%s\n", input, want, have)
+	}
+
+	// Data Base64
+	input.Data = []byte(`not "valid" json`)
+	want = `{"data_base64":"bm90ICJ2YWxpZCIganNvbg==","hi":"test","id":"test","source":"test","specversion":"test","type":"test"}`
+	js, err = input.MarshalJSON()
+	if err != nil {
+		t.Errorf("Marshal:\n%#v\n\nWant:%s\nError:%s\n", input, want, err.Error())
+	}
+	if have := string(js); want != have {
+		t.Errorf("Marshal:\n%#v\n\nWant:%s\nHave:%s\n", input, want, have)
+	}
 }

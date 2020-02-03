@@ -9,15 +9,43 @@ run(){ ## Start server locally
 	"${@:-deault}"
 }
 test(){ ## Curl tests
-	curl -v -X POST \
-		-H "Content-Type: application/cloudevents+json" \
-		-H "ce-type: com.example.someevent" \
-		-H "ce-time: $(date '+%FT%T.%N%:z')" \
-		-H "ce-id: $(uuidgen)" \
-		-H "ce-source: a/b/" \
-		-H "ce-specversion: 1.0" \
-		-H "ce-myextension: 1234" \
-		-d @<(echo '{"hello":"world"}') \
-		http://localhost:8080/
+	root(){ ## Root path
+		curl -v -X GET http://localhost:8080/
+	}
+	structured(){ ## Structured mode
+		curl -v -X POST \
+			-H "Content-Type: application/cloudevents+json" \
+			-d @<(echo '{
+				"type": "com.example.someevent",
+				"time": "'$(date '+%FT%T.%N%:z')'",
+				"id": "'$(uuidgen)'",
+				"source": "a/b/",
+				"specversion": "1.0",
+				"myextension": 1234,
+				"data":{"hello":"world"}
+			}' | jq -rc '.' ) \
+			http://localhost:8080/structured
+	}
+	binary(){ ## Binary mode
+		curl -v -X POST \
+			-H "Content-Type: application/cloudevents+json" \
+			-H "ce-type: com.example.someevent" \
+			-H "ce-time: $(date '+%FT%T.%N%:z')" \
+			-H "ce-id: $(uuidgen)" \
+			-H "ce-source: a/b/" \
+			-H "ce-specversion: 1.0" \
+			-H "ce-myextension: 1234" \
+			-d @<(echo '{"hello":"world"}') \
+			http://localhost:8080/binary
+	}
+	all(){ ## Run each test
+		echo "#####################################"
+		root
+		echo "#####################################"
+		structured
+		echo "#####################################"
+		binary
+	}
+	"${@:-all}"
 }
 "${@:-test}"

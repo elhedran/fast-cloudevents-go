@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
 )
 
 // main is used as a test until this branch can merge to v1
@@ -30,10 +29,9 @@ func main() {
 	}
 	fmt.Printf("	%#v\n", ce)
 
-
 	fmt.Println("Generic:")
 
-	type G struct{
+	type G struct {
 		Data json.RawMessage `json:"data"`
 	}
 	g := G{}
@@ -46,7 +44,7 @@ func main() {
 	}
 	m["data"] = g.Data
 	err := ce.FromMap(m)
-	fmt.Printf("	err:%#v\n	json:%#v\n",err, ce)
+	fmt.Printf("	err:%#v\n	json:%#v\n", err, ce)
 }
 
 // CloudEvent is the primary format for events
@@ -84,9 +82,9 @@ func (ce CloudEvent) Valid() bool {
 // UnmarshalJSON allows translation of []byte to CloudEvent
 func (ce *CloudEvent) UnmarshalJSON(data []byte) (err error) {
 	m := map[string]interface{}{}
-	g := struct{
-		Data json.RawMessage `json:"data"`
-		Data64 []byte `json:"data_base64"`
+	g := struct {
+		Data   json.RawMessage `json:"data"`
+		Data64 []byte          `json:"data_base64"`
 	}{}
 	if err = json.Unmarshal(data, &m); err != nil {
 		return fmt.Errorf("Could not unmarshal event: %s", err.Error())
@@ -94,18 +92,20 @@ func (ce *CloudEvent) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &g); err != nil {
 		return fmt.Errorf("Could not unmarshal event data: %s", err.Error())
 	}
-	if len(g.Data) >0 {
+	if len(g.Data) > 0 {
 		m["data"] = g.Data
 	}
-	if len(g.Data64) >0 {
+	if len(g.Data64) > 0 {
 		m["data_base64"] = g.Data64
 	}
 	return ce.FromMap(m)
 }
+
 // MarshalJSON allows translation of CloudEvent to []byte
 func (ce CloudEvent) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ce.ToMap())
 }
+
 // ToMap produces an intermediate representation of a CloudEvent
 func (ce CloudEvent) ToMap() (m map[string]interface{}) {
 	// Required
@@ -145,49 +145,50 @@ func (ce CloudEvent) ToMap() (m map[string]interface{}) {
 
 	return
 }
+
 // FromMap converts the intermediate map representation back into a CloudEvent
 func (ce *CloudEvent) FromMap(m map[string]interface{}) (err error) {
 	// Required https://github.com/cloudevents/spec/blob/master/spec.md#required-attributes
 	ok := false
-	if ce.Id, ok = m["id"].(string); !ok || len(ce.Id) <1 {
+	if ce.Id, ok = m["id"].(string); !ok || len(ce.Id) < 1 {
 		return fmt.Errorf(errRead("ID", "nonempty string"))
 	}
-	if ce.Source, ok = m["source"].(string); !ok || len(ce.Source) <1 {
+	if ce.Source, ok = m["source"].(string); !ok || len(ce.Source) < 1 {
 		return fmt.Errorf(errRead("Source", "nonempty string"))
 	}
-	if ce.SpecVersion, ok = m["specversion"].(string); !ok || len(ce.Source) <1 {
+	if ce.SpecVersion, ok = m["specversion"].(string); !ok || len(ce.Source) < 1 {
 		return fmt.Errorf(errRead("Spec Version", "nonempty string"))
 	}
-	if ce.Type, ok = m["type"].(string); !ok || len(ce.Type) <1 {
+	if ce.Type, ok = m["type"].(string); !ok || len(ce.Type) < 1 {
 		return fmt.Errorf(errRead("Type", "nonempty string"))
 	}
 
 	// Optional
 	if m["datacontenttype"] != nil {
 		if ce.DataContentType, ok = m["datacontenttype"].(string); !ok {
-			return fmt.Errorf(errRead("Data Content Type","string"))
+			return fmt.Errorf(errRead("Data Content Type", "string"))
 		}
 	}
 	if m["dataschema"] != nil {
 		if ce.DataSchema, ok = m["dataschema"].(string); !ok {
-			return fmt.Errorf(errRead("Data Schema","string"))
+			return fmt.Errorf(errRead("Data Schema", "string"))
 		}
 	}
 	if m["subject"] != nil {
 		if ce.DataSchema, ok = m["subject"].(string); !ok {
-			return fmt.Errorf(errRead("Subject","string"))
+			return fmt.Errorf(errRead("Subject", "string"))
 		}
 	}
 	if m["time"] != nil {
 		ceTime, ok := m["time"].(string)
 		if !ok {
-			return fmt.Errorf(errRead("Time","string"))
+			return fmt.Errorf(errRead("Time", "string"))
 		}
 		ce.Time, err = time.Parse(
 			time.RFC3339, // allows Nano - see tests
 			ceTime)
 		if err != nil {
-			return fmt.Errorf("%s: %s", errRead("Time","time"), err.Error())
+			return fmt.Errorf("%s: %s", errRead("Time", "time"), err.Error())
 		}
 	}
 	// Additional
@@ -201,19 +202,19 @@ func (ce *CloudEvent) FromMap(m map[string]interface{}) (err error) {
 
 	if m["data_base64"] != nil {
 		if ce.Data, ok = m["data_base64"].([]byte); !ok {
-			return fmt.Errorf(errRead("Data Base64","[]byte"))
+			return fmt.Errorf(errRead("Data Base64", "[]byte"))
 		}
 	} else if m["data"] != nil {
 		mData, ok := m["data"].(json.RawMessage)
 		if !ok {
-			return fmt.Errorf(errRead("Data","string"))
+			return fmt.Errorf(errRead("Data", "string"))
 		}
-		if len(mData) <1 {
+		if len(mData) < 1 {
 			return nil
 		}
 		ceData, err := rawJSON([]byte(mData))
 		if err != nil {
-			return fmt.Errorf("%s: %s", errRead("Data","json"), err.Error())
+			return fmt.Errorf("%s: %s", errRead("Data", "json"), err.Error())
 		}
 		ce.Data = ceData
 	}

@@ -107,54 +107,54 @@ func TestUnmarshal(t *testing.T) {
 		}`
 		s := unmarshal("Extensions", data)
 		ex := s.Ok().Extensions
-	{
-		prop := "x"
-		want := float64(3)
-		if got, ok := ex[prop].(float64); !ok {
-			s.Failf("Want: %#v\nHave bad cast of %s with type %T\n\t%#v", want, prop, ex[prop], ex[prop])
-		} else if got != want {
-			s.Failf("Want: %#v\nHave: %#v", want, got)
+		{
+			prop := "x"
+			want := float64(3)
+			if got, ok := ex[prop].(float64); !ok {
+				s.Failf("Want: %#v\nHave bad cast of %s with type %T\n\t%#v", want, prop, ex[prop], ex[prop])
+			} else if got != want {
+				s.Failf("Want: %#v\nHave: %#v", want, got)
+			}
 		}
-	}
-	{
-		prop := "y"
-		if ex[prop] != nil {
-			s.Failf("Have bad nil of %s\n\t%#v", prop, ex[prop])
+		{
+			prop := "y"
+			if ex[prop] != nil {
+				s.Failf("Have bad nil of %s\n\t%#v", prop, ex[prop])
+			}
 		}
-	}
-	{
-		prop := "z"
-		want := 0.1
-		if got, ok := ex[prop].(float64); !ok {
-			s.Failf("Have bad cast of %s\n\t%#v", prop, ex[prop])
-		} else if got != want {
-			s.Failf("Want: %#v\nHave: %#v", want, got)
+		{
+			prop := "z"
+			want := 0.1
+			if got, ok := ex[prop].(float64); !ok {
+				s.Failf("Have bad cast of %s\n\t%#v", prop, ex[prop])
+			} else if got != want {
+				s.Failf("Want: %#v\nHave: %#v", want, got)
+			}
 		}
-	}
-	{
-		prop := "a"
-		if _, ok := ex[prop].([]interface{}); !ok {
-			s.Failf("Have bad cast of %s\n\t%#v", prop, ex[prop])
+		{
+			prop := "a"
+			if _, ok := ex[prop].([]interface{}); !ok {
+				s.Failf("Have bad cast of %s\n\t%#v", prop, ex[prop])
+			}
 		}
-	}
-	{
-		prop := "any other string"
-		want := true
-		if got, ok := ex[prop].(bool); !ok {
-			s.Failf("Want: %#v\nHave bad cast of %s\n\t%#v", want, prop, ex[prop])
-		} else if got != want {
-			s.Failf("Want: %#v\nHave: %#v", want, got)
+		{
+			prop := "any other string"
+			want := true
+			if got, ok := ex[prop].(bool); !ok {
+				s.Failf("Want: %#v\nHave bad cast of %s\n\t%#v", want, prop, ex[prop])
+			} else if got != want {
+				s.Failf("Want: %#v\nHave: %#v", want, got)
+			}
 		}
-	}
-	{
-		prop := "extensions"
-		want := "Even this"
-		if got, ok := ex[prop].(string); !ok {
-			s.Failf("Want: %#v\nHave bad cast of %s\n\t%#v", want, prop, ex[prop])
-		} else if got != want {
-			s.Failf("Want: %#v\nHave: %#v", want, got)
+		{
+			prop := "extensions"
+			want := "Even this"
+			if got, ok := ex[prop].(string); !ok {
+				s.Failf("Want: %#v\nHave bad cast of %s\n\t%#v", want, prop, ex[prop])
+			} else if got != want {
+				s.Failf("Want: %#v\nHave: %#v", want, got)
+			}
 		}
-	}
 	}
 
 	// Additional - JSON

@@ -1,9 +1,17 @@
 package jsonce
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
+)
+
+type Mode int
+const (
+        ModeBinary Mode = iota
+        ModeStructure
+        ModeBatch
 )
 
 // CloudEvent is the primary format for events
@@ -150,7 +158,8 @@ func (ce *CloudEvent) FromMap(m map[string]interface{}) (err error) {
 			return fmt.Errorf("%s: %s", errRead("Time", "time"), err.Error())
 		}
 	}
-	// Additional
+
+	// Additional - Extensions
 	ex, err := GetMapExtensions(m)
 	if err != nil {
 		return fmt.Errorf("Could not read Extensions: %s", err.Error())
@@ -159,7 +168,10 @@ func (ce *CloudEvent) FromMap(m map[string]interface{}) (err error) {
 		ce.Extensions = ex
 	}
 
+	// Additional - Data
 	if m["data_base64"] != nil {
+		fmt.Printf("DBG:Data:%#v\n",m["data_base64"])
+
 		if ce.Data, ok = m["data_base64"].([]byte); !ok {
 			return fmt.Errorf(errRead("Data Base64", "[]byte"))
 		}
@@ -199,7 +211,7 @@ var ContextProperties = []string{
 func GetMapExtensions(m map[string]interface{}) (ex map[string]interface{}, err error) {
 	ex = map[string]interface{}{}
 	for k, v := range m {
-		if inSlice(k, ContextProperties) {
+		if InSlice(k, ContextProperties) {
 			continue
 		}
 		ex[k] = v
@@ -209,9 +221,14 @@ func GetMapExtensions(m map[string]interface{}) (ex map[string]interface{}, err 
 	}
 	return
 }
+// SetData is a utility field for setting binary data on data_base64 on a map without encoding
+func SetData(m map[string]interface{}, data []byte) {
+	// Could use some optimisation if we know len(src)
+	m["data_base64"] = []byte(base64.StdEncoding.EncodeToString(data))
+}
 
-// inSlice is useful for checking the presence of an element in a slice
-func inSlice(e string, list []string) bool {
+// InSlice is useful for checking the presence of an element in a slice
+func InSlice(e string, list []string) bool {
 	for _, v := range list {
 		if v == e {
 			return true

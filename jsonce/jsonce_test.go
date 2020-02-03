@@ -253,3 +253,10 @@ func TestMarshal(t *testing.T) {
 		t.Errorf("Marshal:\n%#v\n\nWant:%s\nHave:%s\n", input, want, have)
 	}
 }
+// TODO loop test
+TestLoop(t *testing.T){
+	data := `{
+		"id":"a","source":"b","specversion":"c","type":"d",
+		"datacontenttype":"e","dataschema":"f","subject":"g","time":"2020-02-02T06:06:06+08:00"
+	}`
+}

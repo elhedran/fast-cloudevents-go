@@ -1,51 +1,10 @@
-package main // jsonce
+package jsonce
 
 import (
 	"encoding/json"
 	"fmt"
 	"time"
 )
-
-// main is used as a test until this branch can merge to v1
-func main() {
-	ce := CloudEvent{
-		Id:          "test",
-		Source:      "test",
-		SpecVersion: "test",
-		Type:        "test",
-		Data:        []byte(`{"a":2}`),
-	}
-	fmt.Println("Literal:")
-	fmt.Printf("	%#v\n", ce)
-	fmt.Println("Marshal:")
-	b, e := ce.MarshalJSON()
-	fmt.Printf("	json:%s\n	err:%+v\n", b, e)
-
-	fmt.Println("Unmarshal:")
-	ce = CloudEvent{}
-	data := `{}`
-	if err := ce.UnmarshalJSON([]byte(data)); err != nil {
-		fmt.Printf("	err: %s\n", err.Error())
-	}
-	fmt.Printf("	%#v\n", ce)
-
-	fmt.Println("Generic:")
-
-	type G struct {
-		Data json.RawMessage `json:"data"`
-	}
-	g := G{}
-	m := map[string]interface{}{}
-	if err := json.Unmarshal(b, &g); err != nil {
-		fmt.Printf("Could not unmarshal event data: %s\n", err.Error())
-	}
-	if err := json.Unmarshal(b, &m); err != nil {
-		fmt.Printf("Could not unmarshal event: %s\n", err.Error())
-	}
-	m["data"] = g.Data
-	err := ce.FromMap(m)
-	fmt.Printf("	err:%#v\n	json:%#v\n", err, ce)
-}
 
 // CloudEvent is the primary format for events
 // https://github.com/cloudevents/spec/blob/master/spec.md

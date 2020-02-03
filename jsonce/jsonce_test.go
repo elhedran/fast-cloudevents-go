@@ -1,8 +1,9 @@
-package main
+package jsonce
 
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 	"testing"
 )
 
@@ -225,6 +226,25 @@ func TestMarshal(t *testing.T) {
 	// Data Base64
 	input.Data = []byte(`not "valid" json`)
 	want = `{"data_base64":"bm90ICJ2YWxpZCIganNvbg==","hi":"test","id":"test","source":"test","specversion":"test","type":"test"}`
+	js, err = input.MarshalJSON()
+	if err != nil {
+		t.Errorf("Marshal:\n%#v\n\nWant:%s\nError:%s\n", input, want, err.Error())
+	}
+	if have := string(js); want != have {
+		t.Errorf("Marshal:\n%#v\n\nWant:%s\nHave:%s\n", input, want, have)
+	}
+
+	// All fields
+	input.Data = []byte(`x`)
+	input.DataContentType = "a"
+	input.DataSchema = "b"
+	input.Subject = "c"
+	input.Time, err = time.Parse(time.RFC3339, "2020-02-02T06:06:06Z")
+	if err != nil {
+		t.Errorf("Test error parsing time: %s", err.Error())
+	}
+
+	want = `{"data_base64":"eA==","datacontenttype":"a","dataschema":"b","hi":"test","id":"test","source":"test","specversion":"test","subject":"c","time":"2020-02-02T06:06:06Z","type":"test"}`
 	js, err = input.MarshalJSON()
 	if err != nil {
 		t.Errorf("Marshal:\n%#v\n\nWant:%s\nError:%s\n", input, want, err.Error())

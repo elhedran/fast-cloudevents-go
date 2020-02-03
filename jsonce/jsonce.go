@@ -65,14 +65,17 @@ type CloudEvent struct {
 	Time            time.Time // RFC3339
 
 	// Additional
-	Extensions map[string]json.RawMessage
+	// https://github.com/cloudevents/spec/blob/master/spec.md#type-system
+	Extensions map[string]interface{} // This type is subject to change to be more specific to CE
 	Data       []byte
 }
 
 // Valid returns true if the CloudEvent seems to fit the spec
 func (ce CloudEvent) Valid() bool {
 	panic("Stubbed function")
+	// Multiline headers could be a warning (deprecated under RFC 7230)
 	// If extensions contains a Context Attribute name, that's bad
+	// IF an extension has data that does not fit into the CE type system
 	// If the data does not seem to be compatible with the contenttype
 	// If URI fields are out of spec
 	return true
@@ -233,20 +236,16 @@ var ContextProperties = []string{
 }
 
 // GetMapExtensions is used to extract extension properties from the intermediate map representation
-func GetMapExtensions(m map[string]interface{}) (ex map[string]json.RawMessage, err error) {
+func GetMapExtensions(m map[string]interface{}) (ex map[string]interface{}, err error) {
+	ex = map[string]interface{}{}
 	for k, v := range m {
 		if inSlice(k, ContextProperties) {
 			continue
 		}
-		raw, ok := v.([]byte)
-		if !ok {
-			return ex, fmt.Errorf(errRead(fmt.Sprintf("extension %s", k), "[]byte"))
-		}
-		data, err := rawJSON(raw)
-		if err != nil {
-			return ex, fmt.Errorf("Could not parse extension %s: %s", k, err.Error())
-		}
-		ex[k] = data
+		ex[k] = v
+		// We might want to parse these into something more specific:
+		// https://www.json.org/json-en.html
+		// https://github.com/cloudevents/spec/blob/master/spec.md#type-system
 	}
 	return
 }

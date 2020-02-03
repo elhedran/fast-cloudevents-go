@@ -1,3 +1,12 @@
+unit(){ ## Unit tests
+	docker(){ ## Run inside docker
+		dgo go test --cover -v
+	}
+	default(){ ## Run locally
+		go test --cover -v
+	}
+	"${@:-default}"
+}
 run(){ ## Start server locally
 	docker(){ ## Run server in docker
 		## See https://gist.github.com/CreativeCactus/c08b8d3bc45da84d50cd828660f134d0

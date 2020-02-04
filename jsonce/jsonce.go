@@ -8,10 +8,11 @@ import (
 )
 
 type Mode int
+
 const (
-        ModeBinary Mode = iota
-        ModeStructure
-        ModeBatch
+	ModeBinary Mode = iota
+	ModeStructure
+	ModeBatch
 )
 
 // CloudEvent is the primary format for events
@@ -35,6 +36,12 @@ type CloudEvent struct {
 	Data       []byte
 }
 
+// DataStruct is used for capturing certain fields conveniently from json.unmarshal
+type DataStruct struct {
+	Data   json.RawMessage `json:"data"`
+	Data64 []byte          `json:"data_base64"`
+}
+
 // Valid returns true if the CloudEvent seems to fit the spec
 func (ce CloudEvent) Valid() bool {
 	panic("Stubbed function")
@@ -49,10 +56,7 @@ func (ce CloudEvent) Valid() bool {
 // UnmarshalJSON allows translation of []byte to CloudEvent
 func (ce *CloudEvent) UnmarshalJSON(data []byte) (err error) {
 	m := map[string]interface{}{}
-	g := struct {
-		Data   json.RawMessage `json:"data"`
-		Data64 []byte          `json:"data_base64"`
-	}{}
+	g := DataStruct{}
 	if err = json.Unmarshal(data, &m); err != nil {
 		return fmt.Errorf("Could not unmarshal event: %s", err.Error())
 	}
@@ -170,8 +174,6 @@ func (ce *CloudEvent) FromMap(m map[string]interface{}) (err error) {
 
 	// Additional - Data
 	if m["data_base64"] != nil {
-		fmt.Printf("DBG:Data:%#v\n",m["data_base64"])
-
 		if ce.Data, ok = m["data_base64"].([]byte); !ok {
 			return fmt.Errorf(errRead("Data Base64", "[]byte"))
 		}
@@ -221,6 +223,7 @@ func GetMapExtensions(m map[string]interface{}) (ex map[string]interface{}, err 
 	}
 	return
 }
+
 // SetData is a utility field for setting binary data on data_base64 on a map without encoding
 func SetData(m map[string]interface{}, data []byte) {
 	// Could use some optimisation if we know len(src)

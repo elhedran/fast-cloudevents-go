@@ -1,132 +1,194 @@
 package fastce
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
-	"net/http"
 	"strings"
 	"time"
+
+	j "github.com/creativecactus/fast-cloudevents-go/jsonce"
 
 	"github.com/valyala/fasthttp"
 )
 
-// CloudEvent represents a stored cloud event in memory.
-type CloudEvent struct {
-	Datacontenttype string            `json:"datacontenttype"`
-	Type            string            `json:"type"`
-	Time            time.Time         `json:"time"`
-	Id              string            `json:"id"`
-	Source          string            `json:"source"`
-	Specversion     string            `json:"specversion"`
-	Data            []byte            `json:"data"`
-	Extensions      map[string]string `json:"extensions"`
-}
+/*
+  ██████╗ ██████╗ ███╗   ██╗███████╗██╗   ██╗███╗   ███╗███████╗
+ ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║   ██║████╗ ████║██╔════╝
+ ██║     ██║   ██║██╔██╗ ██║███████╗██║   ██║██╔████╔██║█████╗
+ ██║     ██║   ██║██║╚██╗██║╚════██║██║   ██║██║╚██╔╝██║██╔══╝
+ ╚██████╗╚██████╔╝██║ ╚████║███████║╚██████╔╝██║ ╚═╝ ██║███████╗
+  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝
+*/
 
-// ExampleServer shows an example implementation of each method with a fasthttp server.
-func ExampleServer() {
-	listenAddr := "0.0.0.0:8080"
-	requestHandler := func(ctx *fasthttp.RequestCtx) {
-		event, err := FastHTTPToEventBinary(ctx)
+// GetEvents determines the mode and content type of a request and gets any event(s) from it
+func GetEvents(ctx *fasthttp.RequestCtx) (ces []j.CloudEvent, mode j.Mode, err error) {
+	// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#13-content-modes
+	mode = GetMode(ctx)
+	switch mode {
+	case j.ModeBinary:
+		ce, err := CtxBinaryToCE(ctx)
 		if err != nil {
-			ctx.Error(err.Error(), http.StatusBadRequest)
-			return
+			return ces, mode, fmt.Errorf("Could not get binary event: %s", err.Error())
 		}
-		js, err := json.Marshal(event)
-		if err != nil {
-			ctx.Error("Could not marshal", http.StatusInternalServerError)
-			return
+		ces = append(ces, ce)
+		return ces, mode, nil
+	case j.ModeStructure:
+		// Determine the media type with which to parse the event
+		// Or reject anything other than JSON
+		// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#3-http-message-mapping
+		ct := string(ctx.Request.Header.Peek("Content-Type"))
+		if !strings.HasPrefix(ct, "application/cloudevents+json") {
+			return ces, mode, fmt.Errorf("Unknown event content media type: %s", ct)
 		}
-		log.Printf("%s\n", string(js))
-		if err = json.Unmarshal(js, &event); err != nil {
-			ctx.Error("Could not unmarshal", http.StatusInternalServerError)
-			return
-		}
-		EventToFastHTTPBinary(event)(ctx) //fmt.Fprintf(ctx, "%q", ctx.Path())
-	}
-	if err := fasthttp.ListenAndServe(listenAddr, requestHandler); err != nil {
-		log.Fatalf("Error in ListenAndServe: %s", err)
-	}
-}
 
-// FastHTTPToEventBinary returns an event from the given fasthttp request in binary mode.
-func FastHTTPToEventBinary(ctx *fasthttp.RequestCtx) (ce CloudEvent, err error) {
-	time, err := time.Parse(
-		time.RFC3339,
-		string(ctx.Request.Header.Peek("ce-time")))
-	if err != nil {
-		err = errors.New("Invalid RFC3339 time")
-		return
-	}
-	ce = CloudEvent{
-		Datacontenttype: string(ctx.Request.Header.Peek("Content-Type")),
-		Type:            string(ctx.Request.Header.Peek("ce-type")),
-		Time:            time,
-		Id:              string(ctx.Request.Header.Peek("ce-id")),
-		Source:          string(ctx.Request.Header.Peek("ce-source")),
-		Specversion:     string(ctx.Request.Header.Peek("ce-specversion")),
-		Data:            ctx.PostBody(),
-		Extensions:      FastHTTPToExtensionsBinary(ctx),
+		ce, err := CtxStructureJSONToCE(ctx)
+		if err != nil {
+			return ces, mode, fmt.Errorf("Could not get structure event: %s", err.Error())
+		}
+		ces = append(ces, ce)
+		return ces, mode, nil
+	case j.ModeBatch:
+		err = fmt.Errorf("Unimplemented mode: %s", mode)
+	default:
+		err = fmt.Errorf("Unknown mode: %s", mode)
 	}
 	return
 }
 
-// EventToFastHTTPBinary sets the given headers and body on the given fasthttp response in binary mode.
-func EventToFastHTTPBinary(event CloudEvent) func(*fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Set("Content-Type", event.Datacontenttype)
-		ctx.Response.Header.Set("ce-type", event.Type)
-		ctx.Response.Header.Set("ce-time", event.Time.Format(time.RFC3339))
-		ctx.Response.Header.Set("ce-id", event.Id)
-		ctx.Response.Header.Set("ce-source", event.Source)
-		ctx.Response.Header.Set("ce-specversion", event.Specversion)
-		ctx.Write(event.Data)
-		ExtensionsToFastHTTPBinary(ctx, event.Extensions)
-	}
-}
+// CtxBinaryToCE converts a RequestCtx in Binary mode into a jsonce CloudEvent
+func CtxBinaryToCE(ctx *fasthttp.RequestCtx) (ce j.CloudEvent, err error) {
+	m := map[string]interface{}{}
 
-// FastHTTPToExtensionsBinary returns a map of ce- prefixed extensions from the given fasthttp request in binary mode.
-func FastHTTPToExtensionsBinary(ctx *fasthttp.RequestCtx) map[string]string {
-	head := map[string]string{}
-	ctx.Request.Header.VisitAll(func(key, value []byte) {
-		if KnownHeader(string(key)) {
+	// Required + Optional
+	// Note that headers ce-data_base64 and ce-data will be dropped to prevent conflicts
+	ctx.Request.Header.VisitAll(func(K, v []byte) {
+		k := strings.ToLower(string(K))
+		if !strings.HasPrefix(k, "ce-") {
 			return
 		}
-		if valid, name := ExtendedHeader(string(key)); valid {
-			head[name] = string(value)
+		key := strings.TrimPrefix(k, "ce-")
+		if key == "data" || key == "data_base64" {
+			err = fmt.Errorf("Binary header forbidden: %s", key)
 		}
+		m[key] = string(v)
 	})
-	return head
-}
-
-// ExtensionsToFastHTTPBinary sets the given extension headers on the given fasthttp response in binary mode.
-func ExtensionsToFastHTTPBinary(ctx *fasthttp.RequestCtx, extensions map[string]string) {
-	for k, v := range extensions {
-		ctx.Response.Header.Set(fmt.Sprintf("ce-%s", k), v)
+	if err != nil {
+		return ce, fmt.Errorf("Could not read binary headers: %s", err.Error())
 	}
+
+	// Additional
+	j.SetData(m, ctx.PostBody())
+
+	ce = j.CloudEvent{}
+	err = ce.FromMap(m)
+	return ce, err
 }
 
-// ExtendedHeader returns true and the unprefixed name of a string if it is an extension header key.
-func ExtendedHeader(h string) (bool, string) {
-	parts := strings.SplitN(strings.ToLower(h), "ce-", 2)
-	num := len(parts)
-	return num >= 2, parts[num-1]
-}
-
-// KnownHeader returns true when the given string is a known, ce- prefixed header key.
-func KnownHeader(h string) bool {
-	known := []string{
-		"ce-type",
-		"ce-time",
-		"ce-id",
-		"ce-source",
-		"ce-specversion",
+// CtxStructureJSONToCE converts a RequestCtx in Structured mode with JSON content type into a jsonce CloudEvent
+func CtxStructureJSONToCE(ctx *fasthttp.RequestCtx) (ce j.CloudEvent, err error) {
+	body := ctx.PostBody()
+	ce = j.CloudEvent{}
+	err = ce.UnmarshalJSON(body)
+	if err != nil {
+		return ce, fmt.Errorf("Could not unmarshal to event: %s", err.Error())
 	}
-	for _, kh := range known {
-		if kh == strings.ToLower(h) {
-			return true
+	ct := string(ctx.Request.Header.Peek("Content-Type"))
+	if len(ce.DataContentType) < 1 {
+		ce.DataContentType = ct
+	}
+	// If both ct and ce.DataContentType were set, this might throw an error according to
+	// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#311-http-content-type
+	return ce, err
+}
+
+// GetMode uses the Content Type header to determine the content mode of the request
+// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#3-http-message-mapping
+func GetMode(ctx *fasthttp.RequestCtx) (mode j.Mode) {
+	ct := string(ctx.Request.Header.Peek("Content-Type"))
+
+	mode = j.ModeBinary
+	if strings.HasPrefix(ct, "application/cloudevents-batch") {
+		mode = j.ModeBatch
+	} else if strings.HasPrefix(ct, "application/cloudevents") {
+		mode = j.ModeStructure
+	}
+	return mode
+}
+
+/*
+ ██████╗ ██████╗  ██████╗ ██████╗ ██╗   ██╗ ██████╗███████╗
+ ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██║   ██║██╔════╝██╔════╝
+ ██████╔╝██████╔╝██║   ██║██║  ██║██║   ██║██║     █████╗
+ ██╔═══╝ ██╔══██╗██║   ██║██║  ██║██║   ██║██║     ██╔══╝
+ ██║     ██║  ██║╚██████╔╝██████╔╝╚██████╔╝╚██████╗███████╗
+ ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝  ╚═════╝╚══════╝
+*/
+
+// PutEvents determines the mode and content type of a request and puts any event(s) into it
+// Note that ces[1...] are dropped unless mode is batch
+func PutEvents(ctx *fasthttp.RequestCtx, ces []j.CloudEvent, mode j.Mode) (err error) {
+	if len(ces) < 1 {
+		return fmt.Errorf("Could not put %d events", len(ces))
+	}
+
+	// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#13-content-modes
+	switch mode {
+	case j.ModeBinary:
+		err := CEToCtxBinary(ctx, ces[0])
+		if err != nil {
+			return fmt.Errorf("Could not set binary event: %s", err.Error())
 		}
+		return nil
+	case j.ModeStructure:
+		ce := ces[0]
+		ct := ce.DataContentType
+
+		if !strings.HasPrefix(ct, "application/cloudevents+json") {
+			return fmt.Errorf("Unknown event content media type: %s", ct)
+		}
+
+		ctx.Response.Header.Set("Content-Type", ct)
+		err := CEToCtxStructureJSON(ctx, ce)
+		if err != nil {
+			return fmt.Errorf("Could not set structure event: %s", err.Error())
+		}
+		return nil
+	case j.ModeBatch:
+		err = fmt.Errorf("Unimplemented mode: %s", mode)
+	default:
+		err = fmt.Errorf("Unknown mode: %s", mode)
 	}
-	return false
+	return
+}
+
+// CEToCtxBinary converts a jsonce CloudEvent into a RequestCtx in Binary mode
+func CEToCtxBinary(ctx *fasthttp.RequestCtx, ce j.CloudEvent) (err error) {
+	// Required
+	ctx.Response.Header.Set("ce-id", ce.Id)
+	ctx.Response.Header.Set("ce-source", ce.Source)
+	ctx.Response.Header.Set("ce-specversion", ce.SpecVersion)
+	ctx.Response.Header.Set("ce-type", ce.Type)
+	// Optional
+	ctx.Response.Header.Set("Content-Type", ce.DataContentType)
+	ctx.Response.Header.Set("ce-dataschema", ce.DataSchema)
+	ctx.Response.Header.Set("ce-subject", ce.Subject)
+	ctx.Response.Header.Set("ce-time", ce.Time.Format(time.RFC3339Nano))
+	// Additional
+	ctx.Write(ce.Data)
+	for k, v := range ce.Extensions {
+		ctx.Response.Header.Set(fmt.Sprintf("ce-%s", k), fmt.Sprintf("%s", v))
+	}
+	return nil
+}
+
+// CEToCtxStructureJSON converts a jsonce CloudEvent into a RequestCtx in Structured mode with JSON content type
+func CEToCtxStructureJSON(ctx *fasthttp.RequestCtx, ce j.CloudEvent) (err error) {
+	js, err := ce.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("Could not marshal event: %s", err.Error())
+	}
+
+	ctx.Write(js)
+	ctx.Response.Header.Set("Content-Type", ce.DataContentType)
+
+	return nil
 }

@@ -2,8 +2,6 @@ package fastce
 
 import (
 	"fmt"
-	"log"
-	"net/http"
 	"strings"
 	"time"
 
@@ -193,39 +191,4 @@ func CEToCtxStructureJSON(ctx *fasthttp.RequestCtx, ce j.CloudEvent) (err error)
 	ctx.Response.Header.Set("Content-Type", ce.DataContentType)
 
 	return nil
-}
-
-/*
- ███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗
- ██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗
- ███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝
- ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗
- ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║
- ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝
-*/
-
-// ExampleServer shows an example implementation of each method with a fasthttp server.
-func ExampleServer(listenAddr string) {
-	router := func(ctx *fasthttp.RequestCtx) {
-		switch p := string(ctx.Path()); p {
-		case "/debug":
-			ctx.Write([]byte("Hello World"))
-			break
-		default:
-			ces, mode, err := GetEvents(ctx)
-			if err != nil {
-				log.Printf("ERR: %s", err.Error())
-				ctx.Error(err.Error(), http.StatusBadRequest)
-				return
-			} else {
-				log.Printf("OK : Received %d events in mode %d\n", len(ces), mode)
-			}
-			fmt.Printf("\tData: %#v\n", ces)
-			// ctx.Write([]byte(fmt.Sprintf("STUB:NO REPLY: %#v", ces)))
-			PutEvents(ctx, ces, mode)
-		}
-	}
-	if err := fasthttp.ListenAndServe(listenAddr, router); err != nil {
-		log.Fatalf("Error in ListenAndServe: %s", err)
-	}
 }

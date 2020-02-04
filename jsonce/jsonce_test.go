@@ -3,8 +3,8 @@ package jsonce
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 	"testing"
+	"time"
 )
 
 type Scenarios struct { // TODO: Make interface
@@ -204,14 +204,14 @@ func TestUnmarshal(t *testing.T) {
 	s.Logf("%s", raw)
 }
 func TestMarshal(t *testing.T) {
-        input := CloudEvent{
-                Id:          "test",
-                Source:      "test",
-                SpecVersion: "test",
-                Type:        "test",
-                Data:        []byte(`{"a":2}`),
-		Extensions:  map[string]interface{}{ "hi":"test" },
-        }
+	input := CloudEvent{
+		Id:          "test",
+		Source:      "test",
+		SpecVersion: "test",
+		Type:        "test",
+		Data:        []byte(`{"a":2}`),
+		Extensions:  map[string]interface{}{"hi": "test"},
+	}
 
 	// Data Normal
 	want := `{"data":{"a":2},"hi":"test","id":"test","source":"test","specversion":"test","type":"test"}`
@@ -253,10 +253,59 @@ func TestMarshal(t *testing.T) {
 		t.Errorf("Marshal:\n%#v\n\nWant:%s\nHave:%s\n", input, want, have)
 	}
 }
+
 // TODO loop test
-TestLoop(t *testing.T){
+func TestLoop(t *testing.T) {
+	fail := func(name string, data interface{}, err error) {
+		if err != nil {
+			t.Errorf("Loop:%s\n%#v\n\nERR:%s", name, data, err.Error())
+			return
+		}
+		t.Errorf("Loop:%s\n%#v\n\n", name, data)
+	}
 	data := `{
 		"id":"a","source":"b","specversion":"c","type":"d",
-		"datacontenttype":"e","dataschema":"f","subject":"g","time":"2020-02-02T06:06:06+08:00"
+		"datacontenttype":"e","dataschema":"f","subject":"g","time":"2020-02-02T06:06:06+08:00",
+		"data_base64":"bm90ICJ2YWxpZCIganNvbg=="
 	}`
+	ce := CloudEvent{}
+	err := ce.UnmarshalJSON([]byte(data))
+	if err != nil {
+		fail("First Unmarshal", data, err)
+	}
+
+	js, err := ce.MarshalJSON()
+	if err != nil {
+		fail("First re-Marshal", ce, err)
+	}
+
+	err = ce.UnmarshalJSON([]byte(js))
+	if err != nil {
+		fail("Second Unmarshal", js, err)
+	}
+
+	js, err = ce.MarshalJSON()
+	if err != nil {
+		fail("Second re-Marshal", ce, err)
+	}
+
+	// Collect data for tests
+
+	// m := map[string]json.RawMessage{}
+	// if err = json.Unmarshal(js, &m); err != nil {
+	// 	fail("JSON Unmarshal result", js, err)
+	// }
+
+	g := DataStruct{}
+	if err = json.Unmarshal(js, &g); err != nil {
+		fail("JSON Unmarshal data", js, err)
+	}
+
+	// Test fields
+
+	want := `not "valid" json`
+	have := string(g.Data64)
+	if have != want {
+		fail("Compare data", g, fmt.Errorf("\n\tHave: %s\n\tWant: %s", have, want))
+	}
 }

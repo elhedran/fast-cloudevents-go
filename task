@@ -18,11 +18,11 @@ run(){ ## Start server locally
 	"${@:-deault}"
 }
 test(){ ## Curl tests
-	root(){ ## Root path
-		curl -v -X GET http://localhost:8080/
+	debug(){ ## Debug path
+		curl -X GET http://localhost:8080/debug
 	}
 	structured(){ ## Structured mode
-		curl -v -X POST \
+		curl -v \
 			-H "Content-Type: application/cloudevents+json" \
 			-d @<(echo '{
 				"type": "com.example.someevent",
@@ -36,8 +36,7 @@ test(){ ## Curl tests
 			http://localhost:8080/structured
 	}
 	binary(){ ## Binary mode
-		curl -v -X POST \
-			-H "Content-Type: application/cloudevents+json" \
+		curl -v \
 			-H "ce-type: com.example.someevent" \
 			-H "ce-time: $(date '+%FT%T.%N%:z')" \
 			-H "ce-id: $(uuidgen)" \
@@ -48,12 +47,14 @@ test(){ ## Curl tests
 			http://localhost:8080/binary
 	}
 	all(){ ## Run each test
-		echo "#####################################"
-		root
-		echo "#####################################"
+		echo ; echo "#####################################" ; echo
+		debug
+		echo ; echo "#####################################" ; echo
 		structured
-		echo "#####################################"
+		echo ; echo "#####################################" ; echo
 		binary
+		echo ; echo "#####################################" ; echo
+
 	}
 	"${@:-all}"
 }

@@ -3,14 +3,19 @@ package main
 import (
 	"log"
 	"net/http"
-	
+
 	"github.com/valyala/fasthttp"
 
 	"github.com/creativecactus/fast-cloudevents-go/fastce"
 )
 
 func main() {
-	ExampleServer("0.0.0.0:8080")
+	// _ is server, which can be .Shutdown()
+	_, errc := ExampleServer("0.0.0.0:8080")
+	err := <-errc
+	if err != nil {
+		log.Fatalf("Server Error: %s", err)
+	}
 }
 
 /*
@@ -23,11 +28,11 @@ func main() {
 */
 
 // ExampleServer shows an example implementation of each method with a fasthttp server.
-func ExampleServer(listenAddr string) {
+func ExampleServer(listenAddr string) (*fasthttp.Server, <-chan error) {
 	router := func(ctx *fasthttp.RequestCtx) {
 		switch p := string(ctx.Path()); p {
-		case "/debug":
-			ctx.Write([]byte("Hello World"))
+		case "/info":
+			ctx.Write([]byte("Example Server"))
 			break
 		default:
 			ces, mode, err := fastce.GetEvents(ctx)
@@ -42,8 +47,14 @@ func ExampleServer(listenAddr string) {
 			fastce.PutEvents(ctx, ces, mode)
 		}
 	}
-	log.Printf("Listening on %s", listenAddr)
-	if err := fasthttp.ListenAndServe(listenAddr, router); err != nil {
-		log.Fatalf("Error in ListenAndServe: %s", err)
+	server := &fasthttp.Server{
+		Handler: router,
 	}
+	shutdown := make(chan error)
+	log.Printf("Listening on %s", listenAddr)
+	go func() {
+		err := server.ListenAndServe(listenAddr)
+		shutdown <- err
+	}()
+	return server, shutdown
 }

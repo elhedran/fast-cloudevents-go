@@ -1,6 +1,7 @@
 package fastce
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -47,7 +48,19 @@ func GetEvents(ctx *fasthttp.RequestCtx) (ces []j.CloudEvent, mode j.Mode, err e
 		ces = append(ces, ce)
 		return ces, mode, nil
 	case j.ModeBatch:
-		err = fmt.Errorf("Unimplemented mode: %s", mode)
+		// Determine the media type with which to parse the events
+		// Or reject anything other than JSON
+		// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#3-http-message-mapping
+		ct := string(ctx.Request.Header.Peek("Content-Type"))
+		if !strings.HasPrefix(ct, "application/cloudevents-batch+json") {
+			return ces, mode, fmt.Errorf("Unknown event content media type: %s", ct)
+		}
+
+		ces, err := CtxBatchJSONToCE(ctx)
+		if err != nil {
+			return ces, mode, fmt.Errorf("Could not get batch events: %s", err.Error())
+		}
+		return ces, mode, nil
 	default:
 		err = fmt.Errorf("Unknown mode: %s", mode)
 	}
@@ -57,6 +70,12 @@ func GetEvents(ctx *fasthttp.RequestCtx) (ces []j.CloudEvent, mode j.Mode, err e
 // CtxBinaryToCE converts a RequestCtx in Binary mode into a jsonce CloudEvent
 func CtxBinaryToCE(ctx *fasthttp.RequestCtx) (ce j.CloudEvent, err error) {
 	m := map[string]interface{}{}
+
+	// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#311-http-content-type
+	dct := string(ctx.Request.Header.Peek("ce-datacontenttype"))
+	if len(dct) > 0 {
+		return ce, fmt.Errorf("Expected empty ce-datacontenttype to be empty, got: %s", dct)
+	}
 
 	// Required + Optional
 	// Note that headers ce-data_base64 and ce-data will be dropped to prevent conflicts
@@ -75,6 +94,9 @@ func CtxBinaryToCE(ctx *fasthttp.RequestCtx) (ce j.CloudEvent, err error) {
 		return ce, fmt.Errorf("Could not read binary headers: %s", err.Error())
 	}
 
+	ct := string(ctx.Request.Header.Peek("Content-Type"))
+	ce.DataContentType = ct
+
 	// Additional
 	j.SetData(m, ctx.PostBody())
 
@@ -91,13 +113,18 @@ func CtxStructureJSONToCE(ctx *fasthttp.RequestCtx) (ce j.CloudEvent, err error)
 	if err != nil {
 		return ce, fmt.Errorf("Could not unmarshal to event: %s", err.Error())
 	}
-	ct := string(ctx.Request.Header.Peek("Content-Type"))
-	if len(ce.DataContentType) < 1 {
-		ce.DataContentType = ct
-	}
-	// If both ct and ce.DataContentType were set, this might throw an error according to
-	// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#311-http-content-type
 	return ce, err
+}
+
+// CtxBatchJSONToCE converts a RequestCtx in batched mode with JSON content type into jsonce CloudEvents
+func CtxBatchJSONToCE(ctx *fasthttp.RequestCtx) (ces []j.CloudEvent, err error) {
+	body := ctx.PostBody()
+	ces = []j.CloudEvent{}
+	err = json.Unmarshal(body, &ces)
+	if err != nil {
+		return ces, fmt.Errorf("Could not unmarshal to events: %s", err.Error())
+	}
+	return ces, err
 }
 
 // GetMode uses the Content Type header to determine the content mode of the request
@@ -140,20 +167,18 @@ func PutEvents(ctx *fasthttp.RequestCtx, ces []j.CloudEvent, mode j.Mode) (err e
 		return nil
 	case j.ModeStructure:
 		ce := ces[0]
-		ct := ce.DataContentType
 
-		if !strings.HasPrefix(ct, "application/cloudevents+json") {
-			return fmt.Errorf("Unknown event content media type: %s", ct)
-		}
-
-		ctx.Response.Header.Set("Content-Type", ct)
 		err := CEToCtxStructureJSON(ctx, ce)
 		if err != nil {
 			return fmt.Errorf("Could not set structure event: %s", err.Error())
 		}
 		return nil
 	case j.ModeBatch:
-		err = fmt.Errorf("Unimplemented mode: %s", mode)
+		err := CEToCtxBatchJSON(ctx, ces)
+		if err != nil {
+			return fmt.Errorf("Could not set structure event: %s", err.Error())
+		}
+		return nil
 	default:
 		err = fmt.Errorf("Unknown mode: %s", mode)
 	}
@@ -188,7 +213,20 @@ func CEToCtxStructureJSON(ctx *fasthttp.RequestCtx, ce j.CloudEvent) (err error)
 	}
 
 	ctx.Write(js)
-	ctx.Response.Header.Set("Content-Type", ce.DataContentType)
+	ctx.Response.Header.Set("Content-Type", "application/cloudevents+json")
+
+	return nil
+}
+
+// CEToCtxBatchJSON converts a jsonce CloudEvent into a RequestCtx in batched mode with JSON content type
+func CEToCtxBatchJSON(ctx *fasthttp.RequestCtx, ces []j.CloudEvent) (err error) {
+	js, err := json.Marshal(ces)
+	if err != nil {
+		return fmt.Errorf("Could not marshal event: %s", err.Error())
+	}
+
+	ctx.Write(js)
+	ctx.Response.Header.Set("Content-Type", "application/cloudevents-batch+json")
 
 	return nil
 }

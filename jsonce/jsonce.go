@@ -42,12 +42,12 @@ type DataStruct struct {
 	Data64 []byte          `json:"data_base64"`
 }
 
-// Valid returns true if the CloudEvent seems to fit the spec
+// Valid returns true if the CloudEvent seems to fit the spec - Not yet supported
 func (ce CloudEvent) Valid() bool {
 	panic("Stubbed function")
 	// Multiline headers could be a warning (deprecated under RFC 7230)
 	// If extensions contains a Context Attribute name, that's bad
-	// IF an extension has data that does not fit into the CE type system
+	// If an extension has data that does not fit into the CE type system
 	// If the data does not seem to be compatible with the contenttype
 	// If URI fields are out of spec
 	return true

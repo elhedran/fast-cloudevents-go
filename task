@@ -19,7 +19,29 @@ run(){ ## Start server locally
 }
 test(){ ## Curl tests
 	debug(){ ## Debug path
-		curl -X GET http://localhost:8080/debug
+		curl http://localhost:8080/info
+	}
+	batch(){ ## Batched mode
+		curl -v \
+			-H "Content-Type: application/cloudevents-batch+json" \
+			-d @<(echo '[{
+				"type": "com.example.someevent",
+				"time": "'$(date '+%FT%T.%N%:z')'",
+				"id": "'$(uuidgen)'",
+				"source": "a/b/",
+				"specversion": "1.0",
+				"myextension": 1234,
+				"data":{"hello":"world"}
+			},{
+				"type": "com.example.someevent",
+				"time": "'$(date '+%FT%T.%N%:z')'",
+				"id": "'$(uuidgen)'",
+				"source": "a/b/",
+				"specversion": "1.0",
+				"myextension": 1234,
+				"data":{"hello":"world"}
+			}]' | jq -rc '.' ) \
+			http://localhost:8080/batch
 	}
 	structured(){ ## Structured mode
 		curl -v \
@@ -50,12 +72,14 @@ test(){ ## Curl tests
 		echo ; echo "#####################################" ; echo
 		debug
 		echo ; echo "#####################################" ; echo
+		batch
+		echo ; echo "#####################################" ; echo
 		structured
 		echo ; echo "#####################################" ; echo
 		binary
 		echo ; echo "#####################################" ; echo
-
 	}
 	"${@:-all}"
 }
 "${@:-test}"
+ 

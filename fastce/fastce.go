@@ -1,6 +1,7 @@
 package fastce
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -142,12 +143,12 @@ func GetMode(ctx *fasthttp.RequestCtx) (mode j.Mode) {
 }
 
 /*
- ██████╗ ███████╗███████╗██████╗  ██████╗ ███╗   ██╗██████╗ 
+ ██████╗ ███████╗███████╗██████╗  ██████╗ ███╗   ██╗██████╗
  ██╔══██╗██╔════╝██╔════╝██╔══██╗██╔═══██╗████╗  ██║██╔══██╗
  ██████╔╝█████╗  ███████╗██████╔╝██║   ██║██╔██╗ ██║██║  ██║
  ██╔══██╗██╔══╝  ╚════██║██╔═══╝ ██║   ██║██║╚██╗██║██║  ██║
  ██║  ██║███████╗███████║██║     ╚██████╔╝██║ ╚████║██████╔╝
- ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚═════╝ 
+ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚═════╝
 */
 
 // PutEvents is a deprecated alias of SetEvents
@@ -172,9 +173,7 @@ func SetEvents(ctx *fasthttp.RequestCtx, ces []j.CloudEvent, mode j.Mode) (err e
 		}
 		return nil
 	case j.ModeStructure:
-		ce := ces[0]
-
-		err := CEToCtxStructureJSON(ctx, ce)
+		err := CEToCtxStructureJSON(ctx, ces[0])
 		if err != nil {
 			return fmt.Errorf("Could not set structure event: %s", err.Error())
 		}
@@ -264,15 +263,13 @@ func SendEvents(URI, method string, response *bufio.Writer, ces []j.CloudEvent, 
 		}
 		return nil
 	case j.ModeStructure:
-		ce := ces[0]
-
-		err := CEToRequestStructureJSON(URI, method, response, ces)
+		err := CEToRequestStructureJSON(URI, method, response, ces[0])
 		if err != nil {
 			return fmt.Errorf("Could not send structure event: %s", err.Error())
 		}
 		return nil
 	case j.ModeBatch:
-		err := CEToRequestBatchJSON(URI, method, response, ces[0])
+		err := CEToRequestBatchJSON(URI, method, response, ces)
 		if err != nil {
 			return fmt.Errorf("Could not send batch events: %s", err.Error())
 		}
@@ -283,16 +280,16 @@ func SendEvents(URI, method string, response *bufio.Writer, ces []j.CloudEvent, 
 	return
 }
 
-// 
-func CEToRequestBinaryJSON(URI, method string, response *bufio.Writer, ce j.CloudEvent) error {
+//
+func CEToRequestBinary(URI, method string, response *bufio.Writer, ce j.CloudEvent) error {
 	return fmt.Errorf("Unimplemented")
-	req, res, release := RequestCtx(URI, method)
+	req, _, release := RequestCtx(URI, method)
 	defer release()
 	req.Header.SetContentType("application/cloudevents+json")
-
+	return fmt.Errorf("Unimplemented")
 }
 
-// 
+//
 func CEToRequestStructureJSON(URI, method string, response *bufio.Writer, ce j.CloudEvent) error {
 	data, err := ce.MarshalJSON()
 	if err != nil {
@@ -303,7 +300,7 @@ func CEToRequestStructureJSON(URI, method string, response *bufio.Writer, ce j.C
 	defer release()
 	req.Header.SetContentType("application/cloudevents+json")
 	req.SetBody(data)
-	if err = fasthttp.DoTimeout(req, res, 30 * time.Second); err != nil {
+	if err = fasthttp.DoTimeout(req, res, 30*time.Second); err != nil {
 		return fmt.Errorf("Request Error: %s", err.Error())
 	}
 	if response != nil {
@@ -312,24 +309,24 @@ func CEToRequestStructureJSON(URI, method string, response *bufio.Writer, ce j.C
 	return err
 }
 
-// 
+//
 func CEToRequestBatchJSON(URI, method string, response *bufio.Writer, ces []j.CloudEvent) error {
 	return fmt.Errorf("Unimplemented")
-	req, res, release := RequestCtx(URI, method)
+	req, _, release := RequestCtx(URI, method)
 	defer release()
 	req.Header.SetContentType("application/cloudevents+json")
-
+	return fmt.Errorf("Unimplemented")
 }
 
 // RequestCtx handles some of the boilerplate of creating a fasthttp client request
-func RequestCtx(URI, method string) (req *fasthttp.RequestCtx, res *fasthttp.ResponseCtx, release func()) {
+func RequestCtx(URI, method string) (req *fasthttp.Request, res *fasthttp.Response, release func()) {
 	req = fasthttp.AcquireRequest()
 	res = fasthttp.AcquireResponse()
-	release = func(){
-		fasthttp.ReleaseRequest()
-		fasthttp.ReleaseResponse()
-	}()
-	
+	release = func() {
+		fasthttp.ReleaseRequest(req)
+		fasthttp.ReleaseResponse(res)
+	}
+
 	req.SetRequestURI(URI)
 	req.Header.SetMethod(method)
 	return

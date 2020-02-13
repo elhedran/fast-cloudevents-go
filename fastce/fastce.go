@@ -142,17 +142,23 @@ func GetMode(ctx *fasthttp.RequestCtx) (mode j.Mode) {
 }
 
 /*
- ██████╗ ██████╗  ██████╗ ██████╗ ██╗   ██╗ ██████╗███████╗
- ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██║   ██║██╔════╝██╔════╝
- ██████╔╝██████╔╝██║   ██║██║  ██║██║   ██║██║     █████╗
- ██╔═══╝ ██╔══██╗██║   ██║██║  ██║██║   ██║██║     ██╔══╝
- ██║     ██║  ██║╚██████╔╝██████╔╝╚██████╔╝╚██████╗███████╗
- ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝  ╚═════╝╚══════╝
+ ██████╗ ███████╗███████╗██████╗  ██████╗ ███╗   ██╗██████╗ 
+ ██╔══██╗██╔════╝██╔════╝██╔══██╗██╔═══██╗████╗  ██║██╔══██╗
+ ██████╔╝█████╗  ███████╗██████╔╝██║   ██║██╔██╗ ██║██║  ██║
+ ██╔══██╗██╔══╝  ╚════██║██╔═══╝ ██║   ██║██║╚██╗██║██║  ██║
+ ██║  ██║███████╗███████║██║     ╚██████╔╝██║ ╚████║██████╔╝
+ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚═════╝ 
 */
 
-// PutEvents determines the mode and content type of a request and puts any event(s) into it
-// Note that ces[1...] are dropped unless mode is batch
+// PutEvents is a deprecated alias of SetEvents
 func PutEvents(ctx *fasthttp.RequestCtx, ces []j.CloudEvent, mode j.Mode) (err error) {
+	fmt.Printf("WARN: PutEvents is deprecated, use SetEvents.\n")
+	return SetEvents(ctx, ces, mode)
+}
+
+// SetEvents accepts the mode and content of a response and puts any event(s) into it
+// Note that ces[1...] are dropped unless mode is batch
+func SetEvents(ctx *fasthttp.RequestCtx, ces []j.CloudEvent, mode j.Mode) (err error) {
 	if len(ces) < 1 {
 		return fmt.Errorf("Could not put %d events", len(ces))
 	}
@@ -176,7 +182,7 @@ func PutEvents(ctx *fasthttp.RequestCtx, ces []j.CloudEvent, mode j.Mode) (err e
 	case j.ModeBatch:
 		err := CEToCtxBatchJSON(ctx, ces)
 		if err != nil {
-			return fmt.Errorf("Could not set structure event: %s", err.Error())
+			return fmt.Errorf("Could not set batch events: %s", err.Error())
 		}
 		return nil
 	default:
@@ -229,4 +235,102 @@ func CEToCtxBatchJSON(ctx *fasthttp.RequestCtx, ces []j.CloudEvent) (err error) 
 	ctx.Response.Header.Set("Content-Type", "application/cloudevents-batch+json")
 
 	return nil
+}
+
+/*
+ ██████╗ ██████╗  ██████╗ ██████╗ ██╗   ██╗ ██████╗███████╗
+ ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██║   ██║██╔════╝██╔════╝
+ ██████╔╝██████╔╝██║   ██║██║  ██║██║   ██║██║     █████╗
+ ██╔═══╝ ██╔══██╗██║   ██║██║  ██║██║   ██║██║     ██╔══╝
+ ██║     ██║  ██║╚██████╔╝██████╔╝╚██████╔╝╚██████╗███████╗
+ ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝  ╚═════╝╚══════╝
+*/
+
+// SendEvents accepts the mode and content of a request and puts any event(s) into it
+// Returns the server response
+// Note that ces[1...] are dropped unless mode is batch
+// This bufio.Writer pattern is not yet stable, and may change in future versions.
+func SendEvents(URI, method string, response *bufio.Writer, ces []j.CloudEvent, mode j.Mode) (err error) {
+	if len(ces) < 1 {
+		return fmt.Errorf("Could not put %d events", len(ces))
+	}
+
+	// https://github.com/cloudevents/spec/blob/v1.0/http-protocol-binding.md#13-content-modes
+	switch mode {
+	case j.ModeBinary:
+		err := CEToRequestBinary(URI, method, response, ces[0])
+		if err != nil {
+			return fmt.Errorf("Could not send binary event: %s", err.Error())
+		}
+		return nil
+	case j.ModeStructure:
+		ce := ces[0]
+
+		err := CEToRequestStructureJSON(URI, method, response, ces)
+		if err != nil {
+			return fmt.Errorf("Could not send structure event: %s", err.Error())
+		}
+		return nil
+	case j.ModeBatch:
+		err := CEToRequestBatchJSON(URI, method, response, ces[0])
+		if err != nil {
+			return fmt.Errorf("Could not send batch events: %s", err.Error())
+		}
+		return nil
+	default:
+		err = fmt.Errorf("Unknown mode: %s", mode)
+	}
+	return
+}
+
+// 
+func CEToRequestBinaryJSON(URI, method string, response *bufio.Writer, ce j.CloudEvent) error {
+	return fmt.Errorf("Unimplemented")
+	req, res, release := RequestCtx(URI, method)
+	defer release()
+	req.Header.SetContentType("application/cloudevents+json")
+
+}
+
+// 
+func CEToRequestStructureJSON(URI, method string, response *bufio.Writer, ce j.CloudEvent) error {
+	data, err := ce.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("Mashal Error: %s", err.Error())
+	}
+
+	req, res, release := RequestCtx(URI, method)
+	defer release()
+	req.Header.SetContentType("application/cloudevents+json")
+	req.SetBody(data)
+	if err = fasthttp.DoTimeout(req, res, 30 * time.Second); err != nil {
+		return fmt.Errorf("Request Error: %s", err.Error())
+	}
+	if response != nil {
+		err = res.Write(response)
+	}
+	return err
+}
+
+// 
+func CEToRequestBatchJSON(URI, method string, response *bufio.Writer, ces []j.CloudEvent) error {
+	return fmt.Errorf("Unimplemented")
+	req, res, release := RequestCtx(URI, method)
+	defer release()
+	req.Header.SetContentType("application/cloudevents+json")
+
+}
+
+// RequestCtx handles some of the boilerplate of creating a fasthttp client request
+func RequestCtx(URI, method string) (req *fasthttp.RequestCtx, res *fasthttp.ResponseCtx, release func()) {
+	req = fasthttp.AcquireRequest()
+	res = fasthttp.AcquireResponse()
+	release = func(){
+		fasthttp.ReleaseRequest()
+		fasthttp.ReleaseResponse()
+	}()
+	
+	req.SetRequestURI(URI)
+	req.Header.SetMethod(method)
+	return
 }

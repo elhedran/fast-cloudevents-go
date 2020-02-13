@@ -14,7 +14,7 @@ See [main.go](./main.go)
 
 ## Features
 
-- High level getters and setters for fasthttp request/response: [`GetEvents`](https://godoc.org/github.com/CreativeCactus/fast-cloudevents-go/fastce#GetEvents), [`PutEvents`](https://godoc.org/github.com/CreativeCactus/fast-cloudevents-go/fastce#PutEvents)
+- High level getters and setters for fasthttp request/response: [`GetEvents`](https://godoc.org/github.com/CreativeCactus/fast-cloudevents-go/fastce#GetEvents), [`SetEvents`](https://godoc.org/github.com/CreativeCactus/fast-cloudevents-go/fastce#SetEvents)
 - [Flexible CloudEvents type](https://godoc.org/github.com/CreativeCactus/fast-cloudevents-go/jsonce#CloudEvent)
 - Lightweight, easy to audit
 

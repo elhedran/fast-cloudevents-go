@@ -44,7 +44,7 @@ func ExampleServer(listenAddr string) (*fasthttp.Server, <-chan error) {
 				log.Printf("OK : Received %d events in mode %d\n", len(ces), mode)
 			}
 			log.Printf("\tData: %#v\n", ces)
-			fastce.PutEvents(ctx, ces, mode)
+			fastce.SetEvents(ctx, ces, mode)
 		}
 	}
 	server := &fasthttp.Server{

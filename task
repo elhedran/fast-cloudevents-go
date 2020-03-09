@@ -1,9 +1,18 @@
+fmt(){ ## gofmt code
+	docker(){ ## Using docker
+		dgo go fmt ./...
+	}
+	default(){ ## Locally
+		go fmt ./...
+	}
+	"${@:-default}"
+}
 unit(){ ## Unit tests
 	docker(){ ## Run inside docker
-		dgo go test --cover -v
+		dgo go test --cover -v --bench=. . ./...
 	}
 	default(){ ## Run locally
-		go test --cover -v
+		go test --cover -v --bench=. . ./...
 	}
 	"${@:-default}"
 }

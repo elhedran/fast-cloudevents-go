@@ -1,6 +1,6 @@
 # Fast Cloudevents
 
-A small, versatile implementation of the [cloudevents spec](https://github.com/cloudevents/spec) for Go.
+A small, versatile implementation of the [cloudevents spec](https://github.com/cloudevents/spec) for Go, with support for fasthttp.
 
 [![GoDoc](https://godoc.org/github.com/CreativeCactus/fast-cloudevents-go?status.svg)](http://godoc.org/github.com/CreativeCactus/fast-cloudevents-go)
 [![Go Report](https://goreportcard.com/badge/github.com/CreativeCactus/fast-cloudevents-go)](https://goreportcard.com/report/github.com/CreativeCactus/fast-cloudevents-go)
@@ -34,3 +34,13 @@ See [JSON](https://github.com/cloudevents/spec/blob/v1.0/json-format.md), [HTTP]
 - [2.4. JSONSchema Validation](https://github.com/cloudevents/spec/blob/v1.0/json-format.md#24-jsonschema-validation) ❌  Not tested yet.
 - [3. Envelope](https://github.com/cloudevents/spec/blob/v1.0/json-format.md#24-jsonschema-validation) 🕙 Fully suported, partially complaint.
 - [4. JSON Batch Format](https://github.com/cloudevents/spec/blob/v1.0/json-format.md#24-jsonschema-validation) ❌  Not supported yet.
+
+## Conventions
+
+- `cec` means CloudEvent Client
+- `ce` and `ces` mean CloudEvent and CloudEvents respectively
+- `re` and `res` mean Response CloudEvent and Response CloudEvents respectively
+
+## See also
+
+[FastHTTP best practices](https://github.com/valyala/fasthttp#fasthttp-best-practices).

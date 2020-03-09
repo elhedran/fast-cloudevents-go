@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -42,15 +44,78 @@ type DataStruct struct {
 	Data64 []byte          `json:"data_base64"`
 }
 
-// Valid returns true if the CloudEvent seems to fit the spec - Not yet supported
-func (ce CloudEvent) Valid() bool {
-	panic("Stubbed function")
-	// Multiline headers could be a warning (deprecated under RFC 7230)
-	// If extensions contains a Context Attribute name, that's bad
-	// If an extension has data that does not fit into the CE type system
-	// If the data does not seem to be compatible with the contenttype
-	// If URI fields are out of spec
-	return true
+func isURIOrEmpty(s string) error {
+	// if len(s) == 0{
+	// 	return nil
+	// }
+	_, err := url.Parse(s) // "" is a valid URL, could be stricter otherwise
+	return err
+}
+
+// Valid returns nil, nil if the CloudEvent seems to fit the spec
+// Valid returns error, nil if the CloudEvent seems valid but has warnings
+func (ce CloudEvent) Valid() (warns []error, err error) {
+	if len(ce.Id) == 0 {
+		err = fmt.Errorf("Required field Id is empty")
+		return
+	}
+	if len(ce.Source) == 0 {
+		err = fmt.Errorf("Required field Source is empty")
+		return
+	}
+	if len(ce.SpecVersion) == 0 {
+		err = fmt.Errorf("Required field SpecVersion is empty")
+		return
+	}
+	if len(ce.Type) == 0 {
+		err = fmt.Errorf("Required field Type is empty")
+		return
+	}
+	if err = isURIOrEmpty(ce.DataSchema); err != nil {
+		err = fmt.Errorf("DataSchema is not a URI: %s", err.Error())
+		return
+	}
+	for k, v := range ce.Extensions {
+		if InSlice(k, ContextProperties) {
+			err = fmt.Errorf("Extension %s: not allowed", k)
+			return
+		}
+		// Multiline headers could be a warning (deprecated under RFC 7230)
+		if strings.Contains(fmt.Sprintf("%s", k), "\n") {
+			warns = append(warns, fmt.Errorf("Extension %s: name contains newline character", k))
+		}
+		if strings.Contains(fmt.Sprintf("%+v", v), "\n") {
+			warns = append(warns, fmt.Errorf("Extension %s: value contains newline character", k))
+		}
+	}
+	if w := isURIOrEmpty(ce.Source); w != nil {
+		// Inherently checks for \n
+		warns = append(warns, fmt.Errorf("Source is not a URI: %s", w.Error()))
+	}
+	if ce.Time.IsZero() {
+		warns = append(warns, fmt.Errorf("Time is zero"))
+	}
+	if strings.Contains(ce.Id, "\n") {
+		warns = append(warns, fmt.Errorf("Id contains newline character"))
+	}
+	if strings.Contains(ce.SpecVersion, "\n") {
+		warns = append(warns, fmt.Errorf("SpecVersion contains newline character"))
+	}
+	if strings.Contains(ce.Type, "\n") {
+		warns = append(warns, fmt.Errorf("Type contains newline character"))
+	}
+	if strings.Contains(ce.DataContentType, "\n") {
+		warns = append(warns, fmt.Errorf("DataContentType contains newline character"))
+	}
+	if strings.Contains(ce.DataSchema, "\n") {
+		warns = append(warns, fmt.Errorf("DataSchema contains newline character"))
+	}
+	if strings.Contains(ce.Subject, "\n") {
+		warns = append(warns, fmt.Errorf("Subject contains newline character"))
+	}
+
+	// We can't check if the data is compatible with the DataContentType
+	return warns, err
 }
 
 // UnmarshalJSON allows translation of []byte to CloudEvent
@@ -97,7 +162,7 @@ func (ce CloudEvent) ToMap() (m map[string]interface{}) {
 		m["subject"] = ce.Subject
 	}
 	if !ce.Time.IsZero() {
-		m["time"] = ce.Time.Format(time.RFC3339)
+		m["time"] = ce.Time.Format(time.RFC3339Nano)
 	}
 
 	// Additional
@@ -248,4 +313,40 @@ func rawJSON(data []byte) (js json.RawMessage, err error) {
 // nonempty produces a predictable error string when needed
 func errRead(prop string, as string) string {
 	return fmt.Sprintf("Could not read %s as %s", prop, as)
+}
+
+/*
+ ██╗   ██╗████████╗██╗██╗     ███████╗
+ ██║   ██║╚══██╔══╝██║██║     ██╔════╝
+ ██║   ██║   ██║   ██║██║     ███████╗
+ ██║   ██║   ██║   ██║██║     ╚════██║
+ ╚██████╔╝   ██║   ██║███████╗███████║
+  ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝
+*/
+
+// GenerateValidEvents provides an array of CloudEvents of a given length
+func GenerateValidEvents(num uint) []CloudEvent {
+	ces := []CloudEvent{}
+	for i := uint(0); i < num; i++ {
+		ces = append(ces, CloudEvent{
+			Id:              fmt.Sprintf("Example_%s", timestamp()),
+			Source:          "Example",
+			SpecVersion:     "v1.0",
+			Type:            "test",
+			DataContentType: "text/plain",
+			DataSchema:      "http://localhost/schema",
+			Subject:         "test",
+			Time:            time.Now(),
+			Extensions: map[string]interface{}{
+				"extension-1": "value",
+			},
+			Data: []byte("raw data"),
+		})
+	}
+	return ces
+}
+
+// Produce a probably-unique unix nano timestamp
+func timestamp() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }

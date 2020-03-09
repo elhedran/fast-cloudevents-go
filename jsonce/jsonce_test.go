@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type Scenarios struct { // TODO: Make interface
+type UnmarshalScenarios struct { // TODO: Make interface
 	T      *testing.T
 	Name   string
 	Input  string
@@ -18,17 +18,17 @@ type Scenarios struct { // TODO: Make interface
 	Err func(string) error
 }
 
-func (s Scenarios) Failf(msg string, arg ...interface{}) {
+func (s UnmarshalScenarios) Failf(msg string, arg ...interface{}) {
 	s.T.Errorf("Unmarshal:%s:\n%s\n\n%s\n", s.Name, s.Input, fmt.Sprintf(msg, arg...))
 }
-func (s Scenarios) Logf(msg string, arg ...interface{}) {
+func (s UnmarshalScenarios) Logf(msg string, arg ...interface{}) {
 	s.T.Logf("Unmarshal:%s:\n\t%s\n", s.Name, fmt.Sprintf(msg, arg...))
 }
 func TestUnmarshal(t *testing.T) {
-	unmarshal := func(name, data string) Scenarios {
+	unmarshal := func(name, data string) UnmarshalScenarios {
 		ce := CloudEvent{}
 		err := ce.UnmarshalJSON([]byte(data))
-		s := Scenarios{
+		s := UnmarshalScenarios{
 			T:      t,
 			Name:   name,
 			Input:  data,
@@ -42,7 +42,10 @@ func TestUnmarshal(t *testing.T) {
 			return ce
 		}
 		s.Err = func(expect string) error {
-			if err == nil || err.Error() != expect {
+			if err == nil {
+				s.Failf("Want: %s\nHave: no error", expect)
+			}
+			if err.Error() != expect {
 				s.Failf("Want: %s\nHave: %s", expect, err.Error())
 			}
 			return err

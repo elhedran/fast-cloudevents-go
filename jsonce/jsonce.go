@@ -211,7 +211,7 @@ func (ce *CloudEvent) FromMap(m map[string]interface{}) (err error) {
 		}
 	}
 	if m["subject"] != nil {
-		if ce.DataSchema, ok = m["subject"].(string); !ok {
+		if ce.Subject, ok = m["subject"].(string); !ok {
 			return fmt.Errorf(errRead("Subject", "string"))
 		}
 	}

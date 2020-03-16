@@ -461,7 +461,7 @@ func (rr ReqRes) Header() (RRHeader, error) {
 func (rr ReqRes) CEToBinary(ce j.CloudEvent) (err error) {
 	head, err := rr.Header()
 	if err != nil {
-		return fmt.Errorf("Could not get Header: %s", err.Error())
+		return fmt.Errorf("Could not access Header: %s", err.Error())
 	}
 	// Required
 	head.Set("ce-id", ce.Id)
@@ -476,7 +476,11 @@ func (rr ReqRes) CEToBinary(ce j.CloudEvent) (err error) {
 	// Additional
 	rr.AppendBody(ce.Data)
 	for k, v := range ce.Extensions {
-		head.Set(fmt.Sprintf("ce-%s", k), fmt.Sprintf("%s", v))
+		data, err := json.Marshal(v)
+		if err != nil { 
+			return fmt.Errorf("Could not marshal Header: %s: %s", k, err.Error())
+		}
+		head.Set(fmt.Sprintf("ce-%s", k), string(data))
 	}
 	return nil
 }

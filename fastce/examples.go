@@ -43,7 +43,7 @@ func ExampleCEClientCEServer(ces []j.CloudEvent, mode j.Mode) (result []j.CloudE
 	defer cec.Release()
 
 	// Client send request to server
-	err = cec.SendEvents(ces, mode)
+	err = cec.SendEvents(j.DefaultCEToMap, ces, mode)
 	if err != nil {
 		err = fmt.Errorf("Example failed to Send: %s", err.Error())
 		return
@@ -51,7 +51,7 @@ func ExampleCEClientCEServer(ces []j.CloudEvent, mode j.Mode) (result []j.CloudE
 
 	// Server receive and respond
 	// err = cec.Send() // No actual HTTP request in this example
-	ces, mode, err = GetEvents(cec.Request)
+	ces, mode, err = GetEvents(j.DefaultMapToCE, cec.Request)
 	if err != nil {
 		err = fmt.Errorf("Example failed to Get: %s", err.Error())
 		return
@@ -61,14 +61,14 @@ func ExampleCEClientCEServer(ces []j.CloudEvent, mode j.Mode) (result []j.CloudE
 		return
 	}
 
-	err = SetEvents(cec.Response, ces, mode)
+	err = SetEvents(j.DefaultCEToMap, cec.Response, ces, mode)
 	if err != nil {
 		err = fmt.Errorf("Example failed to Set: %s", err.Error())
 		return
 	}
 
 	// Client receive response
-	ces, mode, err = cec.RecvEvents()
+	ces, mode, err = cec.RecvEvents(j.DefaultMapToCE)
 	if err != nil {
 		err = fmt.Errorf("Example failed to Recv: %s", err.Error())
 		return
@@ -76,6 +76,31 @@ func ExampleCEClientCEServer(ces []j.CloudEvent, mode j.Mode) (result []j.CloudE
 
 	result = ces
 	return
+}
+
+// SimpleServer shows the highest level interface for fastce, as well as a mechanism for low level configuration
+// listenAddr should be an interface:port such as 0.0.0.0:0. If port is 0, next available free port is used
+func SimpleServer(listenAddr string) error {
+	// An example of a custom unmarshal function
+	MyMapToCE := func(cm j.CEMap) (ce j.CloudEvent, err error) {
+		// In this example, we still want to perform the DefaultCEToMap validation
+		// But we will automatically generate an ID if it is not present
+		if id, ok := cm["id"].(string); !ok || len(id) < 1 {
+			cm["id"] = "SomeRandomRuntimeGeneratedID"
+		}
+		return j.DefaultMapToCE(cm)
+	}
+
+	handler := func(ces j.CloudEvents) (res j.CloudEvents, err error) {
+		// This is a simple echo server
+		res = ces
+		return
+	}
+
+	// In cases where HTTP level actions need to be taken (setting headers, routing), use ListenAndServeHTTP
+	// In cases where an external server is used and you don't want to pass the request down to this server,
+	// you can use the fastce.Get*/Set* functions directly (Send*/Recv* for clients).
+	return CEServer{}.ListenAndServeCE(listenAddr, j.DefaultCEToMap, MyMapToCE, handler)
 }
 
 // ExampleServer shows an example implementation with a fasthttp server.
@@ -111,10 +136,12 @@ func ExampleServer(listenAddr string, handler func(ctx *fasthttp.RequestCtx)) (s
 func ExampleHandler(ctx *fasthttp.RequestCtx) {
 	switch p := string(ctx.Path()); p {
 	case "/info":
+		// If we had a storage interface here, we could show
+		// a projected count of events stored, for example.
 		ctx.Write([]byte("Example Server"))
 		break
 	default:
-		ces, mode, err := GetEvents(&ctx.Request)
+		ces, mode, err := GetEvents(j.DefaultMapToCE, &ctx.Request)
 		if err != nil {
 			log.Printf("ERR: %s", err.Error())
 			ctx.Error(err.Error(), http.StatusBadRequest)
@@ -123,6 +150,6 @@ func ExampleHandler(ctx *fasthttp.RequestCtx) {
 			log.Printf("OK : Received %d events in mode %d\n", len(ces), mode)
 		}
 		// log.Printf("\tData: %#v\n", ces)
-		SetEvents(&ctx.Response, ces, mode)
+		SetEvents(j.DefaultCEToMap, &ctx.Response, ces, mode)
 	}
 }

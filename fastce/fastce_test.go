@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 }
 
 func ClientTester(cec CEClient, ces []jsonce.CloudEvent, mode jsonce.Mode, count uint) (res []jsonce.CloudEvent, err error) {
-	err = cec.SendEvents(ces, mode)
+	err = cec.SendEvents(jsonce.DefaultCEToMap, ces, mode)
 	if err != nil {
 		err = fmt.Errorf("Example failed to Send: %s", err.Error())
 		return
@@ -45,7 +45,7 @@ func ClientTester(cec CEClient, ces []jsonce.CloudEvent, mode jsonce.Mode, count
 		return
 	}
 
-	res, rmode, err := cec.RecvEvents()
+	res, rmode, err := cec.RecvEvents(jsonce.DefaultMapToCE)
 	if err != nil {
 		err = fmt.Errorf("Example failed to Recv: %s", err.Error())
 		return
@@ -151,7 +151,7 @@ func TestCEClientCEServer(t *testing.T) {
 
 	ces, err := ExampleCEClientCEServer(ces, mode)
 	if err != nil {
-		t.Log(err.Error())
+		t.Fatalf(err.Error())
 		return
 	}
 

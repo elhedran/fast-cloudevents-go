@@ -26,18 +26,14 @@ type JsonCloudEvent struct {
 
 func UnMarshal(data []byte, v events.CloudEvent) {
 
-	f := Foo{}
-	if err := json.Unmarshal([]byte(s), &f); err != nil {
+	if err := json.Unmarshal(data, &v); err != nil {
 		panic(err)
 	}
 
-	if err := json.Unmarshal([]byte(s), &f.X); err != nil {
+	if err := json.Unmarshal(data, &v.Extensions); err != nil {
 		panic(err)
 	}
-	for key := range events.ContextProperties {
-
+	for _, prop := range events.ContextProperties {
+		delete(v.Extensions, prop)
 	}
-
-	delete(f.X, "a")
-	delete(f.X, "b")
 }

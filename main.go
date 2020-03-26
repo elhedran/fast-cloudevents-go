@@ -1,19 +1,22 @@
 package main
 
 import (
-	"log"
+	"encoding/json"
+	"fmt"
 
-	"github.com/creativecactus/fast-cloudevents-go/fastce"
+	cejson "github.com/elhedran/fast-cloudevents-go/json"
 )
 
 func main() {
-	// _ is server, which can be .Shutdown()
-	_, errc, _, err := fastce.ExampleServer("0.0.0.0:8080", fastce.ExampleHandler)
+	example := "{ \"id\": \"123\", \"ce-exten\": 123 }"
+
+	singleEvent := cejson.JsonCloudEvent{}
+	//	multEvent := []cejson.JsonCloudEvent{}
+
+	err := json.Unmarshal([]byte(example), &singleEvent)
 	if err != nil {
-		log.Fatalf("Server Init Error: %s", err)
+		fmt.Printf("Error %q\n", err)
 	}
-	err = <-errc
-	if err != nil {
-		log.Fatalf("Server Error: %s", err)
-	}
+	fmt.Printf("event %q, %q\n", singleEvent, singleEvent.Extensions["ce-exten"])
+
 }

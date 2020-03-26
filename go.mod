@@ -1,4 +1,4 @@
-module github.com/creativecactus/fast-cloudevents-go
+module github.com/elhedran/fast-cloudevents-go
 
 go 1.13
 

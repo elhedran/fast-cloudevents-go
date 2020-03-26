@@ -3,7 +3,7 @@ package json
 import (
 	"encoding/json"
 
-	events "ce/events"
+	events "github.com/elhedran/fast-cloudevents-go/events"
 )
 
 type JsonCloudEvent struct {

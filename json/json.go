@@ -2,7 +2,6 @@ package json
 
 import (
 	"encoding/json"
-	"fmt"
 
 	events "github.com/elhedran/fast-cloudevents-go/events"
 )
@@ -30,18 +29,17 @@ type JsonCloudEvent struct {
 
 type JsonCloudEventBatch []JsonCloudEvent
 
-func (v *JsonCloudEvent) UnMarshal(data []byte) {
+func (v *JsonCloudEvent) UnmarshalJSON(data []byte) error {
 	base := jsonCloudEventBase{}
 	extensions := make(map[string]interface{})
 
 	if err := json.Unmarshal(data, &base); err != nil {
-		panic(err)
+		return err
 	}
 
 	if err := json.Unmarshal(data, &extensions); err != nil {
-		panic(err)
+		return err
 	}
-	fmt.Printf("got extensions %q\n", extensions)
 	for _, prop := range events.ContextProperties {
 		delete(extensions, prop)
 	}
@@ -50,5 +48,6 @@ func (v *JsonCloudEvent) UnMarshal(data []byte) {
 		jsonCloudEventBase: base,
 		Extensions:         extensions,
 	}
-	v.Extensions = extensions
+
+	return nil
 }

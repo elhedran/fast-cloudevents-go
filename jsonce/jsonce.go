@@ -52,11 +52,11 @@ func DetermineMode(contentType string) (mode Mode, subtype string) {
 	if len(parts) >= 2 {
 		subtype = parts[1]
 	}
-	mode = ModeStructure
+	mode = ModeBatch
 	if strings.HasPrefix(contentType, mode.ContentType()) {
 		return
 	}
-	mode = ModeBatch
+	mode = ModeStructure
 	if strings.HasPrefix(contentType, mode.ContentType()) {
 		return
 	}

@@ -243,8 +243,8 @@ func SetEventsCtx(mapper j.CEToMap, ctx *fasthttp.RequestCtx, ces []j.CloudEvent
 // SetEvents accepts the mode and content of a response and puts any event(s) into it
 // Note that ces[1...] are dropped unless mode is batch
 func SetEvents(mapper j.CEToMap, res *fasthttp.Response, ces []j.CloudEvent, mode j.Mode) (err error) {
-	if len(ces) < 1 {
-		return fmt.Errorf("Could not put %d events", len(ces))
+	if len(ces) < 1 && mode != j.ModeBatch {
+		return fmt.Errorf("Could not put %d events in mode %d", len(ces), mode)
 	}
 
 	rr := ReqResFromRes(res)
@@ -287,8 +287,8 @@ func SetEvents(mapper j.CEToMap, res *fasthttp.Response, ces []j.CloudEvent, mod
 // Note that this does not perform the request, see .Send if using a CECLient
 // Note that ces[1...] are dropped unless mode is batch
 func SendEvents(mapper j.CEToMap, req *fasthttp.Request, ces []j.CloudEvent, mode j.Mode) (err error) {
-	if len(ces) < 1 {
-		return fmt.Errorf("Could not put %d events", len(ces))
+	if len(ces) < 1 && mode != j.ModeBatch{
+		return fmt.Errorf("Could not put %d events in mode %d", len(ces), mode)
 	}
 
 	rr := ReqResFromReq(req)

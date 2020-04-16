@@ -1,3 +1,12 @@
+dgo(){ ## Dockerized go
+	unset docker
+	OPT=${OPT:- -p 8080:8080 }
+	NAME=$(basename "$PWD")
+	docker run -it --rm ${OPT} \
+        -e GOCACHE="/go/src/$NAME/gocache" \
+        -v $(pwd):/go/src/$NAME -w /go/src/$NAME \
+        -u $(id -u ${USER}):$(id -g ${USER}) golang "${@:-sh}"
+}
 fmt(){ ## gofmt code
 	docker(){ ## Using docker
 		dgo go fmt ./...
@@ -90,5 +99,5 @@ test(){ ## Curl tests
 	}
 	"${@:-all}"
 }
-"${@:-test}"
+${@:-unit docker}
  

@@ -81,6 +81,7 @@ See [JSON](https://github.com/cloudevents/spec/blob/v1.0/json-format.md), [HTTP]
 - `res` is sometimes used to refer to a second CloudEvents if there are multiple
 - `re` and `res` mean Response CloudEvent and Response CloudEvents respectively
 - `Get`/`Set` and `Send`/`Recv` refer to Servers and Clients writing/reading events, respectively
+- Taskfile pattern: `./task unit docker` to run tests
 
 ## See also
 

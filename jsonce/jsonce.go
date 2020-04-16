@@ -46,6 +46,24 @@ func (m Mode) ContentTypePlus(subtype string) string {
 	return fmt.Sprintf("%s+%s", ct, subtype)
 }
 
+// DetermineMode provides a mode and subtype string from a given content type of accept header string
+func DetermineMode(contentType string) (mode Mode, subtype string) {
+	parts := strings.SplitN(contentType, "+", 2)
+	if len(parts) >= 2 {
+		subtype = parts[1]
+	}
+	mode = ModeStructure
+	if strings.HasPrefix(contentType, mode.ContentType()) {
+		return
+	}
+	mode = ModeBatch
+	if strings.HasPrefix(contentType, mode.ContentType()) {
+		return
+	}
+	mode = ModeBinary
+	return
+}
+
 // CloudEvent is the primary format for events
 // https://github.com/cloudevents/spec/blob/master/spec.md
 type CloudEvent struct {

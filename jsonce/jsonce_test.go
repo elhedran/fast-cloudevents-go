@@ -257,6 +257,69 @@ func TestMarshal(t *testing.T) {
 	}
 }
 
+func errOr(err error) string {
+	if err == nil {
+		return "nil"
+	}
+	return err.Error()
+}
+
+func expectEqual(Ok bool, Why string, Err error) func(bool, string, error) error {
+	expect := errOr(Err)
+	return func(ok bool, why string, err error) error {
+		if got := errOr(err); got != expect {
+			return fmt.Errorf("Unexpected Err\n\tHave %s\n\tWant %s", got, expect)
+		}
+		if why != Why {
+			return fmt.Errorf("Unexpected Why\n\tHave %s\n\tWant %s", why, Why)
+		}
+		if ok != Ok {
+			return fmt.Errorf("Unexpected Ok\n\tHave %t\n\tWant %t", ok, Ok)
+		}
+		return nil
+	}
+}
+
+func TestEqual(t *testing.T) {
+	clone := func(ce CloudEvent) (res CloudEvent) {
+		js, err := ce.MarshalJSON()
+		if err != nil {
+			t.Fatalf("Marshal error: %s", err.Error())
+		}
+
+		res = CloudEvent{}
+		err = res.UnmarshalJSON(js)
+		if err != nil {
+			t.Fatalf("Unmarshal error: %s", err.Error())
+		}
+		return res
+	}
+
+	a := GenerateValidEvents(1)[0]
+	b := clone(a)
+	m := DefaultCEToMap
+
+	// Valid case
+	if err := expectEqual(true, "", nil)(a.Equals(b, m)); err != nil {
+		t.Errorf("Equal Events: %s", err.Error())
+	}
+
+	// Invalid case - id
+	b.Id = "test"
+	expect := expectEqual(false, "Fields differ: id", nil)
+	if err := expect(a.Equals(b, m)); err != nil {
+		t.Errorf("Differ id: %s", err.Error())
+	}
+
+	b = clone(a)
+	// Invalid case - extensions
+	b.Extensions["extension"] = "extension"
+	expect = expectEqual(false, "Fields differ: extension", nil)
+	if err := expect(a.Equals(b, m)); err != nil {
+		t.Errorf("Differ extension: %s", err.Error())
+	}
+}
+
 // TODO loop test
 func TestLoop(t *testing.T) {
 	fail := func(name string, data interface{}, err error) {

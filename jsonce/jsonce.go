@@ -169,6 +169,45 @@ func (ce CloudEvent) Valid() (warns []error, err error) {
 	return warns, err
 }
 
+// Equals checks that the given CEs are identical
+// with respect to a given mapper (use default if unsure).
+// If returning false, it returns a string indicating
+// how the events differ.
+// The CloudEvent on which the function is called is the "base".
+// The CloudEvent passed as an argument is the "comparant".
+func (ce CloudEvent) Equals(ceb CloudEvent, mapper CEToMap) (eq bool, why string, fail error) {
+	str := func(v interface{}) string {
+		return fmt.Sprintf("%#v", v)
+	}
+	mismatch := []string{}
+	a, err := mapper(ce)
+	if err != nil {
+		fail = fmt.Errorf("Could not map base: %s", err.Error())
+		return
+	}
+	b, err := mapper(ceb)
+	if err != nil {
+		fail = fmt.Errorf("Could not map comparant: %s", err.Error())
+		return
+	}
+
+	for k := range a {
+		if str(b[k]) != str(a[k]) {
+			mismatch = append(mismatch, k)
+		}
+		delete(b, k)
+	}
+	for k := range b {
+		if str(b[k]) != str(a[k]) {
+			mismatch = append(mismatch, k)
+		}
+	}
+	if len(mismatch) > 0 {
+		why = fmt.Sprintf("Fields differ: %s", strings.Join(mismatch, ", "))
+	}
+	return len(mismatch) < 1, why, nil
+}
+
 // CEMap loosely represents the intermediate map form of a CloudEvent
 type CEMap map[string]interface{}
 

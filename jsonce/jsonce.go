@@ -400,22 +400,31 @@ func DefaultMapToCE(m CEMap) (ce CloudEvent, err error) {
 	fmt.Sprintf("DefaultMapToCE: %#v\n", m)
 	ce = CloudEvent{}
 	// Required https://github.com/cloudevents/spec/blob/master/spec.md#required-attributes
+	// These are enforced as required in .Valid()
 	ok := false
-	if ce.Id, ok = m["id"].(string); !ok || len(ce.Id) < 1 {
-		err = fmt.Errorf(errRead("ID", "nonempty string"))
-		return
+	if m["id"] != nil {
+		if ce.Id, ok = m["id"].(string); !ok {
+			err = fmt.Errorf(errRead("ID", "string"))
+			return
+		}
 	}
-	if ce.Source, ok = m["source"].(string); !ok || len(ce.Source) < 1 {
-		err = fmt.Errorf(errRead("Source", "nonempty string"))
-		return
+	if m["source"] != nil {
+		if ce.Source, ok = m["source"].(string); !ok {
+			err = fmt.Errorf(errRead("Source", "string"))
+			return
+		}
 	}
-	if ce.SpecVersion, ok = m["specversion"].(string); !ok || len(ce.Source) < 1 {
-		err = fmt.Errorf(errRead("Spec Version", "nonempty string"))
-		return
+	if m["specversion"] != nil {
+		if ce.SpecVersion, ok = m["specversion"].(string); !ok {
+			err = fmt.Errorf(errRead("Spec Version", "string"))
+			return
+		}
 	}
-	if ce.Type, ok = m["type"].(string); !ok || len(ce.Type) < 1 {
-		err = fmt.Errorf(errRead("Type", "nonempty string"))
-		return
+	if m["type"] != nil {
+		if ce.Type, ok = m["type"].(string); !ok {
+			err = fmt.Errorf(errRead("Type", "string"))
+			return
+		}
 	}
 
 	// Optional

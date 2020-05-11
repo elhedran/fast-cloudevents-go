@@ -25,9 +25,12 @@ func (s UnmarshalScenarios) Logf(msg string, arg ...interface{}) {
 	s.T.Logf("Unmarshal:%s:\n\t%s\n", s.Name, fmt.Sprintf(msg, arg...))
 }
 func TestUnmarshal(t *testing.T) {
-	unmarshal := func(name, data string) UnmarshalScenarios {
+	unmarshal := func(name, data string, validate bool) UnmarshalScenarios {
 		ce := CloudEvent{}
 		err := ce.UnmarshalJSON([]byte(data))
+		if err == nil && validate {
+			_, err = ce.Valid()
+		}
 		s := UnmarshalScenarios{
 			T:      t,
 			Name:   name,
@@ -50,23 +53,36 @@ func TestUnmarshal(t *testing.T) {
 			}
 			return err
 		}
+
 		return s
 	}
 
 	// Required
 
 	data := `{}`
-	unmarshal("Need id", data).Err(errRead("ID", "nonempty string"))
+	unmarshal("Need id", data, true).Err("Required field Id is empty")
 	data = `{"id":""}`
-	unmarshal("Need id len", data).Err(errRead("ID", "nonempty string"))
+	unmarshal("Need id len", data, true).Err("Required field Id is empty")
 	data = `{"id":"a"}`
-	unmarshal("Need source", data).Err(errRead("Source", "nonempty string"))
+	unmarshal("Need source", data, true).Err("Required field Source is empty")
 	data = `{"id":"a","source":"b"}`
-	unmarshal("Need version", data).Err(errRead("Spec Version", "nonempty string"))
+	unmarshal("Need version", data, true).Err("Required field SpecVersion is empty")
 	data = `{"id":"a","source":"b","specversion":"c"}`
-	unmarshal("Need type", data).Err(errRead("Type", "nonempty string"))
+	unmarshal("Need type", data, true).Err("Required field Type is empty")
 	data = `{"id":"a","source":"b","specversion":"c","type":"d"}`
-	unmarshal("Minimum", data).Ok()
+	unmarshal("Minimum", data, true).Ok()
+
+	// check type only
+	data = `{}`
+	unmarshal("incomplete id", data, false).Ok()
+	data = `{"id":""}`
+	unmarshal("zero length id", data, false).Ok()
+	data = `{"id":"a"}`
+	unmarshal("incomplete source", data, false).Ok()
+	data = `{"id":"a","source":"b"}`
+	unmarshal("incomplete version", data, false).Ok()
+	data = `{"id":"a","source":"b","specversion":"c"}`
+	unmarshal("incomplete type", data, false).Ok()
 
 	// Optional
 
@@ -74,31 +90,37 @@ func TestUnmarshal(t *testing.T) {
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"datacontenttype":"e","dataschema":"f","subject":"g","time":"2020-02-02T06:06:06+08:00"
 	}`
-	unmarshal("Complete", data).Ok()
+	unmarshal("Complete", data, true).Ok()
 
 	data = `{
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"time":"2020-02-02T06:06:06.366090001+10:00"
 	}`
-	unmarshal("NanoTime", data).Ok()
+	unmarshal("NanoTime", data, true).Ok()
 
 	data = `{
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"time":"2020-02-02T06:06:06.366090+12:00"
 	}`
-	unmarshal("MicroTime", data).Ok()
+	unmarshal("MicroTime", data, true).Ok()
 
 	data = `{
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"time":"2020-02-02T06:06:06.366+14:00"
 	}`
-	unmarshal("MilliTime", data).Ok()
+	unmarshal("MilliTime", data, true).Ok()
+
+	data = `{
+		"id":"a","source":"b","specversion":"c","type":"d",
+		"time":30.2
+	}`
+	unmarshal("InvalidTime as number", data, true).Err(`Could not read Time as string`)
 
 	data = `{
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"time":"2020-02-02T06:06:60+25:00"
 	}`
-	unmarshal("InvalidTime", data).Err(`Could not read Time as time: parsing time "2020-02-02T06:06:60+25:00": second out of range`)
+	unmarshal("InvalidTime as out of range", data, true).Err(`Could not read Time as time: parsing time "2020-02-02T06:06:60+25:00": second out of range`)
 
 	// Additional - Extensions
 
@@ -109,7 +131,7 @@ func TestUnmarshal(t *testing.T) {
 			"any other string":true,
 			"extensions":"Even this"
 		}`
-		s := unmarshal("Extensions", data)
+		s := unmarshal("Extensions", data, true)
 		ex := s.Ok().Extensions
 		{
 			prop := "x"
@@ -167,7 +189,7 @@ func TestUnmarshal(t *testing.T) {
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"data":{"x":[1,2,"3"]}
 	}`
-	s := unmarshal("DataJSON", data)
+	s := unmarshal("DataJSON", data, true)
 	js, err := json.RawMessage(s.Ok().Data).MarshalJSON()
 	if err != nil {
 		s.Failf("Failed to parse data: %s", err.Error())
@@ -183,7 +205,7 @@ func TestUnmarshal(t *testing.T) {
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"data":123
 	}`
-	s = unmarshal("DataInt", data)
+	s = unmarshal("DataInt", data, true)
 	js, err = json.RawMessage(s.Ok().Data).MarshalJSON()
 	if err != nil {
 		s.Failf("Failed to parse data: %s", err.Error())
@@ -199,7 +221,7 @@ func TestUnmarshal(t *testing.T) {
 		"id":"a","source":"b","specversion":"c","type":"d",
 		"data_base64":"aGVsbG8gd29ybGQ="
 	}`
-	s = unmarshal("Data64", data)
+	s = unmarshal("Data64", data, true)
 	raw := s.Ok().Data
 	if want := "hello world"; string(raw) != want {
 		s.Failf("Want: %s\nHave: %s", want, string(raw))
